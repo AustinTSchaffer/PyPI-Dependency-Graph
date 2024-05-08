@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "pipdepgraph"
+version = "0.1.0"
+description = ""
+authors = ["Austin Schaffer <schaffer.austin.t@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+aiohttp = "^3.9.5"
+psycopg = {extras = ["binary", "pool"], version = "^3.1.18"}
+packaging = "^24.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
