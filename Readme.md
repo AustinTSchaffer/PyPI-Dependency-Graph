@@ -26,3 +26,4 @@ The reason why I believe these can be improved is because there's no reverse-dep
   - Average number of dependencies per version.
   - Average number of storage bytes required per package? Might not need the answer to the previous bullets for calculating this metric.
   - Multiply this value by the number of packages on PyPI.
+- Package names on PyPI are case-insensitive. Currently the database is case-sensitive. Currently have about 47 packages which are duplicates.

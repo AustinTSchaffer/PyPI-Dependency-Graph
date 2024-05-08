@@ -1,5 +1,19 @@
+select count(*) from pypi_packages.known_package_names kpn;
 select count(*) from pypi_packages.direct_dependencies dd;
-select count(*) from pypi_packages.known_versions kv where kv.processed = false;
+
+select * from known_package_names kpn
+left join known_versions kv on upper(kv.package_name) = upper(kpn.package_name)
+where kv.known_version_id is null;
+
+select * from known_versions where package_name ilike 'cython';
+
+with kpn as (select lower(package_name) package_name from known_package_names)
+select kpn.package_name, count(*) c
+from kpn
+group by package_name
+having count(*) > 1;
+
+select 100.0 * (select count(*)::float from pypi_packages.known_versions kv where kv.processed = true) / (select count(*)::float from pypi_packages.known_versions kv where kv.processed = false) as "percentage complete";
 
 select * from pypi_packages.known_package_names kpn order by date_discovered; 
 
@@ -18,7 +32,7 @@ select
 	kv.package_filename
 from pypi_packages.direct_dependencies dd
 join pypi_packages.known_versions kv on dd.known_version_id = kv.known_version_id
-where dd.dependency_name = 'z3-solver';
+where dd.dependency_name = 'grpcio';
 
 insert into known_package_names (package_name)
 select distinct dependency_name from pypi_packages.direct_dependencies
