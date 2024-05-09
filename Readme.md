@@ -22,7 +22,6 @@ The reason why I believe these can be improved is because there's no reverse-dep
   - Have a process for parsing that info from .gz filenames.
   - Issue being related to the parsing script not handling `.egg` files.
 - Missing an automatic feedback mechanism for newly discovered package names. Currently running a SQL script manually, then rerunning the process.
-- Package names on PyPI are case-insensitive. Currently the database is case-sensitive. Currently have about 47 packages which are duplicates.
 - Try to create a pypi package loop.
   - A depends on B
   - B depends on A
