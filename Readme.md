@@ -22,6 +22,11 @@ The reason why I believe these can be improved is because there's no reverse-dep
   - Have a process for parsing that info from .gz filenames.
   - Issue being related to the parsing script not handling `.egg` files.
 - Missing an automatic feedback mechanism for newly discovered package names. Currently running a SQL script manually, then rerunning the process.
+  - Let's add some batching/streaming
+  - RabbitMQ + Celery?
+  - What else does Celery support?
+  - Do we even need Celery?
+  - Wait I already have a bullet for this.
 - Try to create a pypi package loop.
   - A depends on B
   - B depends on A
