@@ -18,7 +18,7 @@ def get_connection_pool() -> AsyncConnectionPool:
 
 async def main():
     db_pool = get_connection_pool()
-    session = aiohttp.ClientSession()
+    session = aiohttp.ClientSession(headers={ 'User-Agent': 'schaffer.austin.t@gmail.com' })
     async with db_pool.connection() as conn:
         async with aiohttp.ClientSession() as session:
             async with conn.cursor(row_factory=dict_row) as select_cur:
@@ -98,6 +98,9 @@ async def main():
                                 ),
                                 known_versions,
                             )
+
+                            await insert_cur.execute('commit;')
+
                     except Exception as e:
                         print(f"Error while writing version information for package: {package_name}")
                         traceback.print_exc()
