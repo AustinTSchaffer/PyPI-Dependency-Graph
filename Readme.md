@@ -18,12 +18,65 @@ The reason why I believe these can be improved is because there's no reverse-dep
   - Celery might be a good option for the Python process.
   - Unclear what streaming backends are supported by Celery. RabbitMQ might be a good option.
 - Are the postgres indexes sufficient? Over-engineered?
-- Currently not parsing platform compatibility from wheel filenames.
+- Currently not parsing platform compatibility from filenames.
+  - Have a process for parsing that info from .gz filenames.
   - Issue being related to the parsing script not handling `.egg` files.
 - Missing an automatic feedback mechanism for newly discovered package names. Currently running a SQL script manually, then rerunning the process.
-- Need to write some estimates on how big this database will end up.
-  - Average number of versions per package.
-  - Average number of dependencies per version.
-  - Average number of storage bytes required per package? Might not need the answer to the previous bullets for calculating this metric.
-  - Multiply this value by the number of packages on PyPI.
 - Package names on PyPI are case-insensitive. Currently the database is case-sensitive. Currently have about 47 packages which are duplicates.
+- Try to create a pypi package loop.
+  - A depends on B
+  - B depends on A
+  - are there any in the wild?
+
+## Estimate on Database Size
+
+With the current schema, at this present moment. Here's the DB stats.
+
+| table               | rows    | size_pretty | size_bytes |
+|---------------------|---------|-------------|------------|
+| known_package_names |    2936 | 368 kB      |     376832 |
+| known_versions      |  477995 | 247 MB      |  258850816 |
+| direct_dependencies | 2185832 | 455 MB      |  476807168 |
+
+- Current num packages on PyPI: $530,000$
+- Percentage of packages discovered:
+  - $=2936/530000$
+  - $=0.00554$
+  - $\approx 0.55\%$
+- Approximate full size of `known_package_names`
+  - $=\frac{376832 \space\text{B}}{0.00554}$
+  - $=68,020,216 \space\text{B}$
+  - $=68 \space\text{MB}$
+- Versions per package
+  - $=477995/2936$
+  - $\approx 163$
+- Direct dependencies per package version:
+  - $\approx 17.1$ deps per processed known version
+  - (See analysis SQL script)
+- Bytes per direct dependency
+  - $=476807168/2185832$
+  - $\approx 218 \text{B}$
+- Num direct dependency records across all PyPI
+  - $=530000*163*17.1$
+  - $=1,477,269,000$
+  - **1.48 billion `dd` records**
+- Estimate full size of `direct_dependencies`
+  - $=1,477,269,000*218 \space\text{B}$
+  - $=322,044,642,000 \space\text{B}$
+  - $=322 \space\text{GB}$
+- Bytes per version record
+  - $=258850816/477995$
+  - $\approx 542 \space\text{B}$
+- Num versions across PyPI
+  - $=530000*163$
+  - $=86,390,000$
+  - **86.4 million `kv` records**
+- Estimate full size of `known_versions`
+  - $=86,390,000 * 542 \space\text{B}$
+  - $=46,823,380,000 \space\text{B}$
+  - $=46 \space\text{GB}$
+- Total space required (2024)
+  - $\ge 46 \space\text{GB} + 322 \space\text{GB}$
+  - $\ge 400 \space\text{GB}$
+
+Conclusion, totally doable.
