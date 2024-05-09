@@ -24,19 +24,29 @@ order by t.idx;
 --
 -- Packages without any versions.
 --
-select * from known_package_names kpn
+select count(*) over(), * from known_package_names kpn
 left join known_versions kv on lower(kv.package_name) = lower(kpn.package_name)
-where kv.known_version_id is null;
+where kv.known_version_id is null
+and kpn.package_name ilike '%zope%';
+
+select distinct package_name from known_versions kv where kv.package_name ilike '%zope%';
 
 select * from known_versions where package_name ilike 'cython';
 
+-- delete from known_package_names kpn where
+-- kpn.package_name != lower(regexp_replace(kpn.package_name, '[-_\.]+', '-', 'g'));
+
 --
--- Case-insensitive duplicate package names.
+-- Non-canonicalized duplicate package names.
 --
-select lower(package_name), count(*) c
-from known_package_names kpn
-group by lower(package_name)
-having count(*) > 1;
+
+select
+	kpn_1.package_name,
+	kpn_2.package_name
+from known_package_names kpn_1
+join known_package_names kpn_2 on
+	kpn_1.package_name != kpn_2.package_name and
+	lower(regexp_replace(kpn_1.package_name, '[-_\.]+', '-')) = lower(regexp_replace(kpn_2.package_name, '[-_\.]+', '-'));
 
 --
 -- Percentage of known_versions with processed = true
@@ -54,6 +64,7 @@ select * from pypi_packages.known_versions kv where kv.known_version_id = '1cbe2
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
 --
+
 select
 	count(*) over(),
 	kv.package_name,
@@ -71,9 +82,19 @@ where dd.dependency_name = 'grpcio';
 --
 -- Propagate newly discovered package names back into known_package_names
 --
+
 explain analyze
 insert into known_package_names (package_name)
-select distinct dependency_name from pypi_packages.direct_dependencies
+	select lower(regexp_replace(subq.dependency_name, '[-_\.]+', '-', 'g')) from (
+		select distinct dependency_name from pypi_packages.direct_dependencies
+	) subq
+on conflict do nothing;
+
+explain analyze
+insert into known_package_names (package_name)
+	select lower(regexp_replace(subq.package_name, '[-_\.]+', '-', 'g')) cn from (
+		select distinct package_name from pypi_packages.known_package_names
+	) subq order by cn
 on conflict do nothing;
 
 --
@@ -89,6 +110,7 @@ order by package_release desc;
 --
 -- Average number of dependencies per known version (only versions that have completed processing).
 --
+
 with
 	subq as (select dd.known_version_id, count(*) c
 		from direct_dependencies dd
@@ -98,4 +120,4 @@ with
 select avg(c) from subq;
 
 select * from known_package_names kpn order by date_discovered;
-select * from known_versions kv 
+select * from known_versions kv;
