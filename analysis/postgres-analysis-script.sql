@@ -71,7 +71,31 @@ where dd.dependency_name = 'grpcio';
 --
 -- Propagate newly discovered package names back into known_package_names
 --
+explain analyze
 insert into known_package_names (package_name)
 select distinct dependency_name from pypi_packages.direct_dependencies
 on conflict do nothing;
 
+--
+-- pycrdt has a freaking ton of versions.
+--
+select
+	count(*) over(),
+	*
+from known_versions kv
+where package_name ilike 'pycrdt'
+order by package_release desc;
+
+--
+-- Average number of dependencies per known version (only versions that have completed processing).
+--
+with
+	subq as (select dd.known_version_id, count(*) c
+		from direct_dependencies dd
+		join known_versions kv on kv.known_version_id = dd.known_version_id and kv.processed
+		group by dd.known_version_id
+	)
+select avg(c) from subq;
+
+select * from known_package_names kpn order by date_discovered;
+select * from known_versions kv 
