@@ -111,6 +111,15 @@ Conclusion, totally doable.
 It's possible for packages to have cycles in their dependency chains. This is
 made evident by `ipython` depending on itself in a few cases.
 
+```sql
+select
+    kv.package_name, kv.package_version, kv.python_version, kv.requires_python, kv.upload_time, kv.yanked,
+    dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint
+from known_versions kv join direct_dependencies dd
+    on kv.known_version_id = dd.known_version_id
+where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
+```
+
 |package_name|package_version|python_version|requires_python|upload_time            |yanked|extras               |dependency_name|dependency_extras                                                         |version_constraint|
 |------------|---------------|--------------|---------------|-----------------------|------|---------------------|---------------|--------------------------------------------------------------------------|------------------|
 |ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "all"       |ipython        |kernel,nbconvert,black,notebook,parallel,doc,nbformat,qtconsole,matplotlib|                  |

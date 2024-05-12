@@ -91,7 +91,12 @@ from known_versions kv
 where package_name ilike 'pycrdt'
 order by package_release desc;
 
-
+--
+-- Reverse dependencies
+--
+select kv.package_name, kv.package_version, kv.python_version, kv.requires_python, kv.upload_time, kv.yanked, dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint from pypi_packages.direct_dependencies dd
+join known_versions kv on kv.known_version_id = dd.known_version_id
+where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
 
 --
 -- Average number of dependencies per known version (only versions that have completed processing).
