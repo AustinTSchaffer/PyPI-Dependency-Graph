@@ -27,8 +27,6 @@ async def main():
                         package_name = known_package['package_name']
                         known_versions = []
 
-                        package_name = 'ruamel-yaml-split'
-
                         try:
                             print(f'Fetching version information for package: {package_name}')
                             package_name = packaging.utils.canonicalize_name(package_name)
@@ -145,6 +143,9 @@ async def main():
                             # TODO: If the url doesn't have an associated `.metadata` link, download the package and analyze it.
                             # https://stackoverflow.com/questions/30188158/how-to-read-python-package-metadata-without-installation
                             metadata_file_resp = await session.get(f"{package_url}.metadata")
+
+                            # TODO: Write this metric to Postgres.
+                            print(f"Metadata file size for {package_name}: {metadata_file_resp.content_length} (kvid: {known_version_id})")
 
                             # TODO: is it possible to parse only the header?
                             metadata_file_text = await metadata_file_resp.text()
