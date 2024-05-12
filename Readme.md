@@ -17,20 +17,41 @@ The reason why I believe these can be improved is because there's no reverse-dep
 - Need to parallelize this process
   - Celery might be a good option for the Python process.
   - Unclear what streaming backends are supported by Celery. RabbitMQ might be a good option.
+- Missing an automatic feedback mechanism for newly discovered package names. Currently running a SQL script manually, then rerunning the process.
+  - Let's add some batching/streaming
+  - Also a usecase for RabbitMQ + Celery?
 - Are the postgres indexes sufficient? Over-engineered?
 - Currently not parsing platform compatibility from filenames.
   - Have a process for parsing that info from .gz filenames.
   - Issue being related to the parsing script not handling `.egg` files.
-- Missing an automatic feedback mechanism for newly discovered package names. Currently running a SQL script manually, then rerunning the process.
-  - Let's add some batching/streaming
-  - RabbitMQ + Celery?
-  - What else does Celery support?
-  - Do we even need Celery?
-  - Wait I already have a bullet for this.
-- Try to create a pypi package loop.
-  - A depends on B
-  - B depends on A
-  - are there any in the wild?
+- Convert the version constraint information in `direct_deps` to Postgres ranges
+- Add a column to `known_versions` which contains the size of the metadata file.
+  - In this vein, some packages `zstandard` seem to be taking a little extra time for fetching the dep info, indicating that they might have a larger metadata file compared to most.
+  - Possibly could we intercept the metadata file download stream and only take the email header which contains the dependency information? We aren't processing anything from the body of the email, so it's just wasted bandwidth.
+  - Could run a test with KVs which have larger metadata blobs to see how much this speeds up the processing of a link.
+- Not currently considering links for `sdist` (source code) distributions of a version.
+  - Some packages, like `orderddict` only have sdist links, so the version info isn't being captured by `known_versions`
+  - Maybe need a 4th table
+    - `known_package_names`
+    - `known_vesions`
+      - `known_version_id`
+      - `package_name`
+      - `version`
+      - UC on name (text) and version (text), with enrichment on top of those fields
+        - indexes
+        - `package_release`
+    - `version_metadata`
+      - Pretty much everything from the existing `known_versions` model except for the fields which are remaining with `known_Versions`
+        - `known_version_id` -> `version_metadata_id`
+        - processed boolean flag
+        - metadata file size
+        - upload time
+        - requires python
+        - etc
+    - `direct_dependencies`
+      - Largely unchanged
+      - Need to actually process the version constraints and extras constraints. Future work.
+- Need to do some analysis to see how much version information changes between different "version metadata"
 
 ## Estimate on Database Size
 
@@ -84,3 +105,31 @@ With the current schema, at this present moment. Here's the DB stats.
   - $\ge 400 \space\text{GB}$
 
 Conclusion, totally doable.
+
+## Package Cycles
+
+It's possible for packages to have cycles in their dependency chains. This is
+made evident by `ipython` depending on itself in a few cases.
+
+|package_name|package_version|python_version|requires_python|upload_time            |yanked|extras               |dependency_name|dependency_extras                                                         |version_constraint|
+|------------|---------------|--------------|---------------|-----------------------|------|---------------------|---------------|--------------------------------------------------------------------------|------------------|
+|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "all"       |ipython        |kernel,nbconvert,black,notebook,parallel,doc,nbformat,qtconsole,matplotlib|                  |
+|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
+|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "doc"       |ipython        |test                                                                      |                  |
+|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "test-extra"|ipython        |test                                                                      |                  |
+|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "all"       |ipython        |kernel,nbconvert,black,notebook,parallel,doc,nbformat,qtconsole,matplotlib|                  |
+|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
+|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "doc"       |ipython        |test                                                                      |                  |
+|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "test-extra"|ipython        |test                                                                      |                  |
+|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "all"       |ipython        |nbconvert,black,notebook,terminal,parallel,doc,nbformat,qtconsole,kernel  |                  |
+|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
+|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "doc"       |ipython        |test                                                                      |                  |
+|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "test-extra"|ipython        |test                                                                      |                  |
+|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "all"       |ipython        |nbconvert,black,notebook,terminal,parallel,doc,nbformat,qtconsole,kernel  |                  |
+|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
+|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "doc"       |ipython        |test                                                                      |                  |
+|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "test-extra"|ipython        |test                                                                      |                  |
+|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "all"       |ipython        |nbconvert,black,notebook,terminal,parallel,doc,nbformat,qtconsole,kernel  |                  |
+|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "all"       |ipython        |test_extra,test                                                           |                  |
+|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "doc"       |ipython        |test                                                                      |                  |
+|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "test-extra"|ipython        |test                                                                      |                  |

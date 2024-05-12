@@ -26,12 +26,7 @@ order by t.idx;
 --
 select count(*) over(), * from known_package_names kpn
 left join known_versions kv on lower(kv.package_name) = lower(kpn.package_name)
-where kv.known_version_id is null
-and kpn.package_name ilike '%zope%';
-
-select distinct package_name from known_versions kv where kv.package_name ilike '%zope%';
-
-select * from known_versions where package_name ilike 'cython';
+where kv.known_version_id is null;
 
 -- delete from known_package_names kpn where
 -- kpn.package_name != lower(regexp_replace(kpn.package_name, '[-_\.]+', '-', 'g'));
@@ -41,12 +36,10 @@ select * from known_versions where package_name ilike 'cython';
 --
 
 select
-	kpn_1.package_name,
-	kpn_2.package_name
-from known_package_names kpn_1
-join known_package_names kpn_2 on
-	kpn_1.package_name != kpn_2.package_name and
-	lower(regexp_replace(kpn_1.package_name, '[-_\.]+', '-')) = lower(regexp_replace(kpn_2.package_name, '[-_\.]+', '-'));
+	kpn.package_name,
+	pypi_packages.canonicalize_package_name(kpn.package_name) canonname
+from known_package_names kpn
+where pypi_packages.canonicalize_package_name(kpn.package_name) != kpn.package_name;
 
 --
 -- Percentage of known_versions with processed = true
@@ -60,6 +53,7 @@ select (
 select * from pypi_packages.known_package_names kpn order by date_discovered; 
 select * from pypi_packages.direct_dependencies dd;
 select * from pypi_packages.known_versions kv where kv.known_version_id = '1cbe2091-0fb0-4c6a-9919-e014de526dc9';
+select * from pypi_packages.known_versions kv where not processed;
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
@@ -83,22 +77,12 @@ where dd.dependency_name = 'grpcio';
 -- Propagate newly discovered package names back into known_package_names
 --
 
-explain analyze
 insert into known_package_names (package_name)
-	select lower(regexp_replace(subq.dependency_name, '[-_\.]+', '-', 'g')) from (
-		select distinct dependency_name from pypi_packages.direct_dependencies
-	) subq
-on conflict do nothing;
-
-explain analyze
-insert into known_package_names (package_name)
-	select lower(regexp_replace(subq.package_name, '[-_\.]+', '-', 'g')) cn from (
-		select distinct package_name from pypi_packages.known_package_names
-	) subq order by cn
+select distinct dependency_name from pypi_packages.direct_dependencies
 on conflict do nothing;
 
 --
--- pycrdt has a freaking ton of versions.
+-- pycrdt has a ton of versions.
 --
 select
 	count(*) over(),
@@ -106,6 +90,8 @@ select
 from known_versions kv
 where package_name ilike 'pycrdt'
 order by package_release desc;
+
+
 
 --
 -- Average number of dependencies per known version (only versions that have completed processing).
@@ -121,3 +107,46 @@ select avg(c) from subq;
 
 select * from known_package_names kpn order by date_discovered;
 select * from known_versions kv;
+
+-- Dep tree for boto3 (WIP)
+with
+latest_versions as (
+	select subq.* from (
+		select
+			*,
+			rank() OVER (PARTITION BY package_name ORDER BY upload_time DESC) as r
+		from known_versions kv
+	) subq
+	where subq.r = 1
+),
+boto3version as (
+	select * from latest_versions kv
+	where kv.package_name = 'boto3'
+)
+select
+	'boto3' as package_name,
+	dd_l1.dependency_name dep_name_l1 ,
+	dd_l2.dependency_name dep_name_l2 ,
+	dd_l3.dependency_name dep_name_l3 ,
+	dd_l4.dependency_name dep_name_l4 ,
+	dd_l5.dependency_name dep_name_l5 ,
+	dd_l6.dependency_name dep_name_l6 --,
+	--dd_l7.dependency_name dep_name_l7
+from direct_dependencies dd_l1
+join boto3version b3v on b3v.known_version_id = dd_l1.known_version_id
+left join latest_versions lv_l1 on lv_l1.package_name = dd_l1.dependency_name
+left join direct_dependencies dd_l2 on lv_l1.known_version_id = dd_l2.known_version_id
+left join latest_versions lv_l2 on lv_l2.package_name = dd_l2.dependency_name
+left join direct_dependencies dd_l3 on lv_l2.known_version_id = dd_l3.known_version_id
+left join latest_versions lv_l3 on lv_l3.package_name = dd_l3.dependency_name
+left join direct_dependencies dd_l4 on lv_l3.known_version_id = dd_l4.known_version_id
+left join latest_versions lv_l4 on lv_l4.package_name = dd_l4.dependency_name
+left join direct_dependencies dd_l5 on lv_l4.known_version_id = dd_l5.known_version_id
+left join latest_versions lv_l5 on lv_l5.package_name = dd_l5.dependency_name
+left join direct_dependencies dd_l6 on lv_l5.known_version_id = dd_l6.known_version_id
+--left join latest_versions lv_l6 on lv_l6.package_name = dd_l6.dependency_name
+--left join direct_dependencies dd_l7 on lv_l6.known_version_id = dd_l7.known_version_id
+order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_name_l5, dep_name_l6 --, dep_name_l7
+
+-- DANGER
+-- delete from known_package_names where package_name != 'boto3';
