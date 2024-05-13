@@ -1,7 +1,7 @@
 services:
   db:
     restart: always
-    image: pypi_scraper/postgres
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:latest
     networks:
       - db_net
     ports:
@@ -19,9 +19,7 @@ services:
 
   # app:
   #   restart: always
-  #   build:
-  #     context: .
-  #     dockerfile: app.Dockerfile
+  #   image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:latest
   #   environment:
   #     POSTGRES_USER: pypi_scraper
   #     POSTGRES_PASSWORD: password
