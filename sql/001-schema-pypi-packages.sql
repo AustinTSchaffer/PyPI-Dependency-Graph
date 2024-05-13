@@ -60,7 +60,7 @@ alter table pypi_packages.version_distributions
     on delete cascade;
 
 create index known_version_id
-    on pypi_packages.direct_dependencies
+    on pypi_packages.version_distributions
     using btree
     (known_version_id);
 
@@ -80,7 +80,7 @@ alter table pypi_packages.direct_dependencies
 
 alter table pypi_packages.direct_dependencies
     add foreign key (version_distribution_id)
-    references pypi_packages.known_versions (version_distribution_id)
+    references pypi_packages.version_distributions (version_distribution_id)
     on delete cascade;
 
 create index version_distribution_id
