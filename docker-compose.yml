@@ -22,7 +22,6 @@ services:
   #     POSTGRES_PASSWORD: password
   #     POSTGRES_DB: defaultdb
   #     POSTGRES_HOST: db
-  #     APP_RELOAD: 'true'
   #   volumes:
   #     - './src:/home/app_user/app/src'
   #   depends_on:

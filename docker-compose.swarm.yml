@@ -1,31 +1,43 @@
 services:
   db:
     restart: always
-    image: postgres
+    image: pypi_scraper/postgres
+    networks:
+      - db_net
     ports:
       - '5432:5432'
     environment:
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
       POSTGRES_DB: defaultdb
+    deploy:
+      placement:
+          constraints:
+            - node.labels.storage==true
     volumes:
       - db:/var/lib/postgresql/data
-      - './sql:/docker-entrypoint-initdb.d/'
 
-  app:
-    restart: always
-    build:
-      context: .
-      dockerfile: app.Dockerfile
-    environment:
-      POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: defaultdb
-      POSTGRES_HOST: db
-    volumes:
-      - './src:/home/app_user/app/src'
-    depends_on:
-      - db
+  # app:
+  #   restart: always
+  #   build:
+  #     context: .
+  #     dockerfile: app.Dockerfile
+  #   environment:
+  #     POSTGRES_USER: pypi_scraper
+  #     POSTGRES_PASSWORD: password
+  #     POSTGRES_DB: defaultdb
+  #     POSTGRES_HOST: db
+  #   volumes:
+  #     - './src:/home/app_user/app/src'
+  #   depends_on:
+  #     - db
+
+networks:
+  db_net:
 
 volumes:
   db:
+    driver: local
+    driver_opts:
+      type: volume 
+      mountpoint: /mnt/postgres-db/data
