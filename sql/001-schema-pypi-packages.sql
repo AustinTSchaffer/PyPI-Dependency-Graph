@@ -21,7 +21,7 @@ create table pypi_packages.known_versions (
 );
 
 alter table pypi_packages.known_versions
-    add unique (package_filename);
+    add unique (package_name, package_version);
 
 alter table pypi_packages.known_versions
     add foreign key (package_name)

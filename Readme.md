@@ -142,3 +142,7 @@ where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
 |ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "all"       |ipython        |test_extra,test                                                           |                  |
 |ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "doc"       |ipython        |test                                                                      |                  |
 |ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "test-extra"|ipython        |test                                                                      |                  |
+
+## Docker Stack
+
+Docker stack resources are based on my RPI cluster project.
