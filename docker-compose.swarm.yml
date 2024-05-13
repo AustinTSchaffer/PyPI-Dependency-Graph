@@ -15,7 +15,7 @@ services:
           constraints:
             - node.labels.storage==true
     volumes:
-      - db:/var/lib/postgresql/data
+      - /mnt/postgres-db/data:/var/lib/postgresql/data
 
   # app:
   #   restart: always
@@ -32,10 +32,3 @@ services:
 
 networks:
   db_net:
-
-volumes:
-  db:
-    driver: local
-    driver_opts:
-      type: volume 
-      mountpoint: /mnt/postgres-db/data
