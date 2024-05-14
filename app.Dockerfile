@@ -12,4 +12,4 @@ RUN poetry install --no-root
 COPY . .
 RUN poetry install
 
-ENTRYPOINT [ "poetry", "run", "python", "pipdepgraph/main.py" ]
+CMD [ "poetry", "run", "python", "pipdepgraph/main.py" ]

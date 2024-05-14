@@ -17,18 +17,18 @@ services:
     volumes:
       - /mnt/postgres-db/data:/var/lib/postgresql/data
 
-  # app:
-  #   restart: always
-  #   image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:latest
-  #   environment:
-  #     POSTGRES_USER: pypi_scraper
-  #     POSTGRES_PASSWORD: password
-  #     POSTGRES_DB: defaultdb
-  #     POSTGRES_HOST: db
-  #   volumes:
-  #     - './src:/home/app_user/app/src'
-  #   depends_on:
-  #     - db
+  app:
+    restart: always
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:latest
+    networks:
+      - db_net
+    environment:
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: defaultdb
+      POSTGRES_HOST: db
+    depends_on:
+      - db
 
 networks:
   db_net:
