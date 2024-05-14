@@ -106,7 +106,7 @@ class PypiApi:
         Returns the parsed metadata file plus the size of the file.
         """
 
-        if distribution.package_type in ("sdist", "bdist_wininst"):
+        if distribution.package_type in ("sdist", "bdist_wininst", "bdist_egg"):
             logger.warning(
                 f"Cannot retrieve metadata file for distribution without downloading entire package. Distribution: {distribution}"
             )
