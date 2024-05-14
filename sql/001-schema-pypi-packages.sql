@@ -6,7 +6,8 @@ grant all on schema pypi_packages to pypi_scraper;
 --
 create table pypi_packages.known_package_names (
     package_name text not null primary key,
-    date_discovered timestamp not null default now()
+    date_discovered timestamp not null default now(),
+    date_last_checked timestamp null
 );
 
 --
@@ -28,7 +29,7 @@ alter table pypi_packages.known_versions
     references pypi_packages.known_package_names (package_name)
     on delete cascade;
 
-create index package_name
+create index
     on pypi_packages.known_versions
     using btree
     (package_name);
@@ -48,7 +49,7 @@ create table pypi_packages.version_distributions (
     processed boolean not null default false
 );
 
-create index unprocessed_versions
+create index
     on pypi_packages.version_distributions
     using btree
     (processed)
@@ -59,7 +60,7 @@ alter table pypi_packages.version_distributions
     references pypi_packages.known_versions (known_version_id)
     on delete cascade;
 
-create index known_version_id
+create index
     on pypi_packages.version_distributions
     using btree
     (known_version_id);
@@ -83,12 +84,12 @@ alter table pypi_packages.direct_dependencies
     references pypi_packages.version_distributions (version_distribution_id)
     on delete cascade;
 
-create index version_distribution_id
+create index
     on pypi_packages.direct_dependencies
     using btree
     (version_distribution_id);
 
-create index dependency_name
+create index
     on pypi_packages.direct_dependencies
     using btree
     (dependency_name);

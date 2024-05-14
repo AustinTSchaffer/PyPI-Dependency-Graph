@@ -16,7 +16,9 @@ from (
 	union
 	select 2 as "idx", 'known_versions' as "table", count(*) from pypi_packages.known_versions kv
 	union
-	select 3 as "idx", 'direct_dependencies' as "table", count(*) from pypi_packages.direct_dependencies dd
+	select 3 as "idx", 'version_distributions' as "table", count(*) from pypi_packages.version_distributions kv
+	union
+	select 4 as "idx", 'direct_dependencies' as "table", count(*) from pypi_packages.direct_dependencies dd
 ) t
 left join table_sizes ts on ts.table_name = t."table"
 order by t.idx;
@@ -46,8 +48,8 @@ where pypi_packages.canonicalize_package_name(kpn.package_name) != kpn.package_n
 --
 select (
 	100.0 *
-	(select count(*)::float from pypi_packages.known_versions kv where kv.processed = true) /
-	(select count(*)::float from pypi_packages.known_versions kv)
+	(select count(*)::float from pypi_packages.version_distributions vd where vd.processed = true) /
+	(select count(*)::float from pypi_packages.version_distributions vd)
 ) as "percentage complete";
 
 select * from pypi_packages.known_package_names kpn order by date_discovered; 
@@ -63,40 +65,47 @@ select
 	count(*) over(),
 	kv.package_name,
 	kv.package_version,
-	kv.requires_python,
+	vd.requires_python,
 	dd.extras,
 	dd.dependency_name,
 	dd.dependency_extras,
 	dd.version_constraint,
-	kv.package_filename
+	vd.package_filename
 from pypi_packages.direct_dependencies dd
-join pypi_packages.known_versions kv on dd.known_version_id = kv.known_version_id
+join pypi_packages.version_distributions vd on vd.version_distribution_id = dd.version_distribution_id
+join pypi_packages.known_versions kv on vd.known_version_id = kv.known_version_id
 where dd.dependency_name = 'grpcio';
 
 --
 -- Propagate newly discovered package names back into known_package_names
 --
 
-insert into known_package_names (package_name)
+insert into pypi_packages.known_package_names (package_name)
 select distinct dependency_name from pypi_packages.direct_dependencies
 on conflict do nothing;
 
 --
--- pycrdt has a ton of versions.
+-- pycrdt has a ton of distributions.
 --
 select
 	count(*) over(),
-	*
+	kv.*, vd.*
 from known_versions kv
+join version_distributions vd on kv.known_version_id = vd.known_version_id
 where package_name ilike 'pycrdt'
 order by package_release desc;
 
 --
--- Reverse dependencies
+-- Self-referential package names
 --
-select kv.package_name, kv.package_version, kv.python_version, kv.requires_python, kv.upload_time, kv.yanked, dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint from pypi_packages.direct_dependencies dd
-join known_versions kv on kv.known_version_id = dd.known_version_id
-where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
+select
+	kv.package_name, kv.package_version,
+	vd.python_version, vd.requires_python, vd.upload_time, vd.yanked,
+	dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint
+from pypi_packages.direct_dependencies dd
+join version_distributions vd on vd.version_distribution_id = dd.version_distribution_id
+join known_versions kv on kv.known_version_id = vd.known_version_id
+where dd.dependency_name = kv.package_name;
 
 --
 -- Average number of dependencies per known version (only versions that have completed processing).
