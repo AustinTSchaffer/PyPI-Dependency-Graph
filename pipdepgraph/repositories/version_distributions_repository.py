@@ -91,8 +91,8 @@ class VersionDistributionRepository:
             f"""
                 update {TABLE_NAME}
                 set
-                    processed = %b,
-                    metadata_file_size = coalesce(%d, metadata_file_size)
+                    processed = %s,
+                    metadata_file_size = coalesce(%s, metadata_file_size)
                 where
                     version_distribution_id = %s
             """
@@ -111,10 +111,10 @@ class VersionDistributionRepository:
         cursor: AsyncCursor | None = None,
     ):
         if cursor:
-            await self._insert_version_distributions(version_distributions, cursor)
+            await self._update_version_distributions(version_distributions, cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._insert_version_distributions(version_distributions, cursor)
+                await self._update_version_distributions(version_distributions, cursor)
                 await cursor.execute("commit;")
 
     async def iter_version_distributions(
@@ -147,7 +147,7 @@ class VersionDistributionRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += " vd.processed = %b "
+                query += " vd.processed = %s "
                 params.append(processed)
 
             await cursor.execute(query, params)
