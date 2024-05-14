@@ -1,14 +1,14 @@
 from typing import AsyncIterable
 import textwrap
+import itertools
 
 from psycopg_pool import AsyncConnectionPool
 from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
-from pipdepgraph import models
+from pipdepgraph import models, constants
 
 TABLE_NAME = "pypi_packages.known_versions"
-DEFAULT_SELECT_BATCH_SIZE = 64
 
 
 class KnownVersionRepository:
@@ -21,24 +21,30 @@ class KnownVersionRepository:
         if not known_versions:
             return {}
 
-        query = f"insert into {TABLE_NAME} (package_name, package_version, package_release, date_discovered) values "
+        PARAMS_PER_INSERT = 4
+        for known_versions in itertools.batched(
+            known_versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
+        ):
+            query = f"insert into {TABLE_NAME} (package_name, package_version, package_release, date_discovered) values "
 
-        query += ",".join(
-            "( %s, %s, %s, coalesce(%s, now()) ) " for _ in range(len(known_versions))
-        )
-        query += " on conflict do nothing; "
-
-        params = [None, None, None, None] * len(known_versions)
-        for i, known_version in enumerate(known_versions):
-            offset = i * 4
-            params[offset + 0] = known_version.package_name
-            params[offset + 1] = known_version.package_version
-            params[offset + 2] = (
-                "{" + ",".join(map(str, known_version.package_release or [])) + "}"
+            query += ",".join(
+                "( %s, %s, %s, coalesce(%s, now()) ) "
+                for _ in range(len(known_versions))
             )
-            params[offset + 3] = known_version.date_discovered
+            query += " on conflict do nothing; "
 
-        await cursor.execute(query, params)
+            params = [None] * PARAMS_PER_INSERT * len(known_versions)
+            offset = 0
+            for kv in known_versions:
+                params[offset + 0] = kv.package_name
+                params[offset + 1] = kv.package_version
+                params[offset + 2] = (
+                    f'{{{",".join(map(str, kv.package_release or []))}}}'
+                )
+                params[offset + 3] = kv.date_discovered
+                offset += PARAMS_PER_INSERT
+
+            await cursor.execute(query, params)
 
     async def insert_known_versions(
         self,

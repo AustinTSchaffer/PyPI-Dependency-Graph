@@ -120,6 +120,7 @@ async def main():
         kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
         kvr = known_versions_repository.KnownVersionRepository(db_pool)
         vdr = version_distributions_repository.VersionDistributionRepository(db_pool)
+        ddr = direct_dependencies_repository.DirectDependencyRepository(db_pool)
 
         async for package in kpnr.iter_known_package_names(
             date_last_checked_before=datetime.datetime.now()
@@ -201,24 +202,34 @@ async def main():
                 unprocessed_distribution
             )
 
-            dependencies = []
-            if package_metadata.requires_dist:
-                for dependency in package_metadata.requires_dist:
-                    dependencies.append(
-                        (
-                            known_version_id,
-                            str(dependency.marker) if dependency.marker else None,
-                            packaging.utils.canonicalize_name(
+            if not metadata:
+                unprocessed_distribution.metadata_file_size = 0
+                unprocessed_distribution.processed = True
+                await vdr.update_version_distributions([unprocessed_distribution])
+                continue
+
+            direct_dependencies: list[models.DirectDependency] = []
+            if metadata.requires_dist:
+                for dependency in metadata.requires_dist:
+                    direct_dependencies.append(
+                        models.DirectDependency(
+                            version_distribution_id=unprocessed_distribution.version_distribution_id,
+                            extras=(
+                                str(dependency.marker) if dependency.marker else None
+                            ),
+                            dependency_extras=",".join(dependency.extras),
+                            dependency_name=packaging.utils.canonicalize_name(
                                 dependency.name, validate=True
                             ),
-                            ",".join(dependency.extras),
-                            str(dependency.specifier),
+                            version_constraint=str(dependency.specifier),
                         )
                     )
 
+            await ddr.insert_direct_dependencies(direct_dependencies)
+
             unprocessed_distribution.metadata_file_size = metadata_file_size
             unprocessed_distribution.processed = True
-            await vdr.insert_version_distributions
+            await vdr.update_version_distributions([unprocessed_distribution])
 
 
 if __name__ == "__main__":

@@ -1,11 +1,12 @@
 from typing import AsyncIterable
 import datetime
+import itertools
 
 from psycopg_pool import AsyncConnectionPool
 from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
-from pipdepgraph import models
+from pipdepgraph import models, constants
 
 TABLE_NAME = "pypi_packages.known_package_names"
 DEFAULT_SELECT_BATCH_SIZE = 64
@@ -23,31 +24,40 @@ class KnownPackageNameRepository:
         if not package_names:
             return
 
-        query = f"insert into {TABLE_NAME} "
-        params = []
+        MAX_PARAMS_PER_INSERT = 3
 
-        match type(package_names[0]):
-            case models.KnownPackageName:
-                query += "(package_name, date_discovered, date_last_checked) values "
-                query += ",".join(
-                    "(%s, coalesce(%s, now()), %s)" for _ in range(len(package_names))
-                )
+        for package_names in itertools.batched(
+            package_names, constants.POSTGRES_MAX_QUERY_PARAMS // MAX_PARAMS_PER_INSERT
+        ):
+            query = f"insert into {TABLE_NAME} "
+            params = []
 
-                params = [None, None, None] * len(package_names)
-                for i, package_name in enumerate(package_names):
-                    offset = i * 3
-                    params[offset + 0] = package_name.package_name
-                    params[offset + 1] = package_name.date_discovered
-                    params[offset + 2] = package_name.date_last_checked
-            case str():
-                query += "(package_name) values "
-                query += ",".join("(%s)" for _ in range(len(package_names)))
-                params = package_names
-            case t:
-                raise ValueError(f"invalid type for package_names: {t}")
+            match type(package_names[0]):
+                case models.KnownPackageName:
+                    query += (
+                        "(package_name, date_discovered, date_last_checked) values "
+                    )
+                    query += ",".join(
+                        "(%s, coalesce(%s, now()), %s)"
+                        for _ in range(len(package_names))
+                    )
 
-        query += "on conflict do nothing;"
-        await cursor.execute(query, params)
+                    params = [None] * MAX_PARAMS_PER_INSERT * len(package_names)
+                    offset = 0
+                    for package_name in package_names:
+                        params[offset + 0] = package_name.package_name
+                        params[offset + 1] = package_name.date_discovered
+                        params[offset + 2] = package_name.date_last_checked
+                        offset += 3
+                case str():
+                    query += "(package_name) values "
+                    query += ",".join("(%s)" for _ in range(len(package_names)))
+                    params = package_names
+                case t:
+                    raise ValueError(f"invalid type for package_names: {t}")
+
+            query += "on conflict do nothing;"
+            await cursor.execute(query, params)
 
     async def insert_known_package_names(
         self,

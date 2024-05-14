@@ -6,7 +6,7 @@ from psycopg_pool import AsyncConnectionPool
 from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
-from pipdepgraph import models
+from pipdepgraph import models, constants
 
 TABLE_NAME = "pypi_packages.version_distributions"
 
@@ -23,8 +23,10 @@ class VersionDistributionRepository:
         if not version_distributions:
             return None
 
+        PARAMS_PER_INSERT = 8
         for version_distributions in itertools.batched(
-            version_distributions, 65535 // 10
+            version_distributions,
+            constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
         ):
             query = textwrap.dedent(
                 f"""
@@ -49,11 +51,10 @@ class VersionDistributionRepository:
             )
             query += " on conflict do nothing; "
 
-            params = [None, None, None, None, None, None, None, None] * len(
-                version_distributions
-            )
-            for i, vd in enumerate(version_distributions):
-                offset = i * 8
+            params = [None] * PARAMS_PER_INSERT * len(version_distributions)
+
+            offset = 0
+            for vd in version_distributions:
                 params[offset + 0] = vd.known_version_id
                 params[offset + 1] = vd.package_type
                 params[offset + 2] = vd.python_version
@@ -62,6 +63,7 @@ class VersionDistributionRepository:
                 params[offset + 5] = vd.yanked
                 params[offset + 6] = vd.package_filename
                 params[offset + 7] = vd.package_url
+                offset += PARAMS_PER_INSERT
 
             await cursor.execute(query, params)
 
