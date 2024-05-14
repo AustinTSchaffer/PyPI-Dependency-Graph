@@ -122,6 +122,9 @@ async def main():
                 )
 
                 if not metadata:
+                    logger.debug(
+                        f"{unprocessed_distribution.version_distribution_id} - No metadata information found."
+                    )
                     unprocessed_distribution.metadata_file_size = 0
                     unprocessed_distribution.processed = True
                     await vdr.update_version_distributions([unprocessed_distribution])
@@ -144,8 +147,10 @@ async def main():
                             )
                         )
 
+                logger.info(f"{unprocessed_distribution.version_distribution_id} - Found {len(direct_dependencies)} direct dependencies.")
                 await ddr.insert_direct_dependencies(direct_dependencies)
 
+                logger.debug(f"{unprocessed_distribution.version_distribution_id} - Marking processed.")
                 unprocessed_distribution.metadata_file_size = metadata_file_size
                 unprocessed_distribution.processed = True
                 await vdr.update_version_distributions([unprocessed_distribution])
@@ -153,6 +158,7 @@ async def main():
             except Exception as ex:
                 logger.error(f"{unprocessed_distribution.version_distribution_id} - Error while retrieving/persisting direct dependency info.", exc_info=ex)
 
+        logger.info(f"{unprocessed_distribution.version_distribution_id} - Propagating package names from direct_dependencies back to known_package_names.")
         await kpnr.propagate_dependency_names()
 
 if __name__ == "__main__":
