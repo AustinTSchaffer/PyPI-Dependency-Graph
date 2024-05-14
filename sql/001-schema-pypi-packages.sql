@@ -40,12 +40,14 @@ create index
 create table pypi_packages.version_distributions (
     version_distribution_id uuid not null default gen_random_uuid() primary key,
     known_version_id uuid not null,
+    package_type text not null,
     python_version text not null,
     requires_python text,
     upload_time timestamp not null,
     yanked boolean not null,
     package_filename text not null,
     package_url text not null,
+    metadata_file_size int null,
     processed boolean not null default false
 );
 

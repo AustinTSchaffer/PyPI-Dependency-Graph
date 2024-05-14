@@ -3,6 +3,9 @@ name = "pipdepgraph"
 version = "0.1.0"
 description = ""
 authors = ["Austin Schaffer <schaffer.austin.t@gmail.com>"]
+packages = [
+    { include = "pipdepgraph" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
