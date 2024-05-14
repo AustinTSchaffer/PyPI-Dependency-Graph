@@ -7,7 +7,6 @@ import packaging.metadata
 import packaging.specifiers
 import packaging.utils
 import packaging.version
-from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 import packaging
@@ -37,6 +36,7 @@ async def populate_known_versions_for_package_name(session: aiohttp.ClientSessio
                 for version_metadata in distributions:
                     if version_metadata['packagetype'] in ('sdist', 'bdist_wininst'):
                         # We don't care about source distributions nor Windows EXEs.
+                        # TODO: We should persist this info, but not process it into direct_deps.
                         continue
 
                     release: list[int] = None
@@ -193,7 +193,7 @@ async def main():
                 async with conn.cursor(row_factory=dict_row) as select_cur:
                     await select_cur.execute('select package_name from pypi_packages.known_package_names order by date_discovered desc;')
 
-                    while (known_packages := await select_cur.fetchmany(16)):
+                    while (known_packages := await select_cur.fetchmany(32)):
                         promises = [
                             populate_known_versions_for_package_name(session, db_pool, known_package['package_name'])
                             for known_package in known_packages
@@ -216,7 +216,7 @@ async def main():
                         )
                     )
 
-                    while (known_versions := await select_cur.fetchmany(16)):
+                    while (known_versions := await select_cur.fetchmany(32)):
                         promises = [
                             populate_direct_deps_for_known_version(session, db_pool, kv)
                             for kv in known_versions
