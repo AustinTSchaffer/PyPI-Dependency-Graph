@@ -198,38 +198,43 @@ async def main():
             logger.info(
                 f"{unprocessed_distribution.version_distribution_id} - Getting direct dependencies."
             )
-            metadata, metadata_file_size = await pypi.get_distribution_metadata(
-                unprocessed_distribution
-            )
 
-            if not metadata:
-                unprocessed_distribution.metadata_file_size = 0
+            try:
+                metadata, metadata_file_size = await pypi.get_distribution_metadata(
+                    unprocessed_distribution
+                )
+
+                if not metadata:
+                    unprocessed_distribution.metadata_file_size = 0
+                    unprocessed_distribution.processed = True
+                    await vdr.update_version_distributions([unprocessed_distribution])
+                    continue
+
+                direct_dependencies: list[models.DirectDependency] = []
+                if metadata.requires_dist:
+                    for dependency in metadata.requires_dist:
+                        direct_dependencies.append(
+                            models.DirectDependency(
+                                version_distribution_id=unprocessed_distribution.version_distribution_id,
+                                extras=(
+                                    str(dependency.marker) if dependency.marker else None
+                                ),
+                                dependency_extras=",".join(dependency.extras),
+                                dependency_name=packaging.utils.canonicalize_name(
+                                    dependency.name, validate=True
+                                ),
+                                version_constraint=str(dependency.specifier),
+                            )
+                        )
+
+                await ddr.insert_direct_dependencies(direct_dependencies)
+
+                unprocessed_distribution.metadata_file_size = metadata_file_size
                 unprocessed_distribution.processed = True
                 await vdr.update_version_distributions([unprocessed_distribution])
-                continue
 
-            direct_dependencies: list[models.DirectDependency] = []
-            if metadata.requires_dist:
-                for dependency in metadata.requires_dist:
-                    direct_dependencies.append(
-                        models.DirectDependency(
-                            version_distribution_id=unprocessed_distribution.version_distribution_id,
-                            extras=(
-                                str(dependency.marker) if dependency.marker else None
-                            ),
-                            dependency_extras=",".join(dependency.extras),
-                            dependency_name=packaging.utils.canonicalize_name(
-                                dependency.name, validate=True
-                            ),
-                            version_constraint=str(dependency.specifier),
-                        )
-                    )
-
-            await ddr.insert_direct_dependencies(direct_dependencies)
-
-            unprocessed_distribution.metadata_file_size = metadata_file_size
-            unprocessed_distribution.processed = True
-            await vdr.update_version_distributions([unprocessed_distribution])
+            except Exception as ex:
+                logger.error(f"{unprocessed_distribution.version_distribution_id} - Error while retrieving/persisting direct dependency info.", exc_info=ex)
 
 
 if __name__ == "__main__":
