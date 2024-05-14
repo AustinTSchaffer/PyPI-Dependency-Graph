@@ -7,6 +7,7 @@ from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
+from pipdepgraph.repositories import direct_dependencies_repository
 
 TABLE_NAME = "pypi_packages.known_package_names"
 DEFAULT_SELECT_BATCH_SIZE = 64
@@ -111,9 +112,26 @@ class KnownPackageNameRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += " kpn.date_last_checked < %s "
+                query += " (kpn.date_last_checked is null or kpn.date_last_checked < %s) "
                 params.append(date_last_checked_before)
 
             await cursor.execute(query, params)
             async for record in cursor:
                 yield models.KnownPackageName(**record)
+
+    async def _propagate_dependency_names(self, cursor: AsyncCursor):
+        query = f"""
+            insert into {TABLE_NAME} (package_name)
+            select distinct dependency_name from {direct_dependencies_repository.TABLE_NAME}
+            on conflict do nothing;
+        """
+
+        await cursor.execute(query)
+
+    async def propagate_dependency_names(self, cursor: AsyncCursor | None = None):
+        if cursor:
+            await self._propagate_dependency_names(cursor)
+        else:
+            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                await self._propagate_dependency_names(cursor)
+                await cursor.execute("commit;")

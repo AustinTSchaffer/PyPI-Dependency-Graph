@@ -29,89 +29,6 @@ def get_connection_pool() -> AsyncConnectionPool:
     return AsyncConnectionPool(conninfo=constants.POSTGRES_CONNECTION_STRING)
 
 
-async def populate_direct_deps_for_known_version(
-    session: aiohttp.ClientSession, db_pool: AsyncConnectionPool, known_version: dict
-) -> None:
-    async with db_pool.connection() as conn:
-        known_version_id = known_version["known_version_id"]
-        package_name = known_version["package_name"]
-        package_version = known_version["package_version"]
-        package_url = known_version["package_url"]
-
-        try:
-            print(
-                f"Fetching dependency information for package {package_name} version {package_version} (kvid: {known_version_id})"
-            )
-
-            package_name = packaging.utils.canonicalize_name(package_name)
-
-            # TODO: If the url doesn't have an associated `.metadata` link, download the package and analyze it.
-            # https://stackoverflow.com/questions/30188158/how-to-read-python-package-metadata-without-installation
-            metadata_file_resp = await session.get(f"{package_url}.metadata")
-
-            # TODO: Write this metric to Postgres.
-            print(
-                f"Metadata file size for {package_name}: {metadata_file_resp.content_length} (kvid: {known_version_id})"
-            )
-
-            # TODO: is it possible to parse only the header?
-            metadata_file_text = await metadata_file_resp.text()
-            package_metadata = packaging.metadata.Metadata.from_email(
-                metadata_file_text, validate=False
-            )
-
-        except Exception:
-            print(
-                f"Error processing dependency metadata for package {package_name} version {package_version} (kvid: {known_version_id})"
-            )
-            traceback.print_exc()
-            return
-
-        async with conn.cursor() as update_cur:
-            try:
-                if dependencies:
-                    print(
-                        f"Writing dependency information for package {package_name} version {package_version} (kvid: {known_version_id})"
-                    )
-                    await update_cur.executemany(
-                        textwrap.dedent(
-                            """
-                            insert into pypi_packages.direct_dependencies
-                                (
-                                    known_version_id,
-                                    extras,
-                                    dependency_name,
-                                    dependency_extras,
-                                    version_constraint
-                                )
-                            values
-                                (%s, %s, %s, %s, %s)
-                            on conflict do nothing;
-                            """
-                        ),
-                        dependencies,
-                    )
-
-                await update_cur.execute(
-                    textwrap.dedent(
-                        """
-                        update pypi_packages.known_versions
-                        set processed = true
-                        where known_version_id = %s;
-                        """
-                    ),
-                    [known_version_id],
-                )
-
-                await update_cur.execute("commit;")
-            except Exception:
-                print(
-                    f"Error writing dependency information for package {package_name} version {package_version} (kvid: {known_version_id})"
-                )
-                traceback.print_exc()
-                await update_cur.execute("rollback;")
-
-
 async def main():
     async with get_connection_pool() as db_pool, aiohttp.ClientSession(
         headers={"User-Agent": "schaffer.austin.t@gmail.com"}
@@ -236,6 +153,7 @@ async def main():
             except Exception as ex:
                 logger.error(f"{unprocessed_distribution.version_distribution_id} - Error while retrieving/persisting direct dependency info.", exc_info=ex)
 
+        await kpnr.propagate_dependency_names()
 
 if __name__ == "__main__":
     root = logging.getLogger()
