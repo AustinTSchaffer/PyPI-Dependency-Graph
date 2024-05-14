@@ -13,7 +13,6 @@ The reason why I believe these can be improved is because there's no reverse-dep
 
 ## TODO
 
-- Split the `main.py` file into discrete components. Currently it's a spaghetti mess.
 - Need to parallelize this process
   - Celery might be a good option for the Python process.
   - Unclear what streaming backends are supported by Celery. RabbitMQ might be a good option.
@@ -25,32 +24,6 @@ The reason why I believe these can be improved is because there's no reverse-dep
   - Have a process for parsing that info from .gz filenames.
   - Issue being related to the parsing script not handling `.egg` files.
 - Convert the version constraint information in `direct_deps` to Postgres ranges
-- Add a column to `known_versions` which contains the size of the metadata file.
-  - In this vein, some packages `zstandard` seem to be taking a little extra time for fetching the dep info, indicating that they might have a larger metadata file compared to most.
-  - Possibly could we intercept the metadata file download stream and only take the email header which contains the dependency information? We aren't processing anything from the body of the email, so it's just wasted bandwidth.
-  - Could run a test with KVs which have larger metadata blobs to see how much this speeds up the processing of a link.
-- Not currently considering links for `sdist` (source code) distributions of a version.
-  - Some packages, like `orderddict` only have sdist links, so the version info isn't being captured by `known_versions`
-  - Maybe need a 4th table
-    - `known_package_names`
-    - `known_vesions`
-      - `known_version_id`
-      - `package_name`
-      - `version`
-      - UC on name (text) and version (text), with enrichment on top of those fields
-        - indexes
-        - `package_release`
-    - `version_metadata`
-      - Pretty much everything from the existing `known_versions` model except for the fields which are remaining with `known_Versions`
-        - `known_version_id` -> `version_metadata_id`
-        - processed boolean flag
-        - metadata file size
-        - upload time
-        - requires python
-        - etc
-    - `direct_dependencies`
-      - Largely unchanged
-      - Need to actually process the version constraints and extras constraints. Future work.
 - Need to do some analysis to see how much version information changes between different "version metadata"
 
 ## Estimate on Database Size
