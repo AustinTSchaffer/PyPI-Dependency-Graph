@@ -62,3 +62,15 @@ alter table pypi_packages.version_distributions	drop column package_release;
 
 alter table pypi_packages.known_package_names
 	add column date_last_checked timestamp null;
+
+alter table pypi_packages.version_distributions
+	add column package_type text null;
+
+alter table pypi_packages.version_distributions
+	add column metadata_file_size int null;
+
+alter table pypi_packages.version_distributions drop trigger canonicalize_package_name;
+
+
+
+

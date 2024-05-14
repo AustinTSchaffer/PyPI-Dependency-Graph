@@ -164,3 +164,6 @@ order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_n
 
 -- DANGER
 -- delete from known_package_names where package_name != 'boto3';
+-- update known_package_names set date_last_checked = now() - interval '5 min';
+
+select count(*) from version_distributions vd where not vd.processed;

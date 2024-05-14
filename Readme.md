@@ -145,4 +145,6 @@ where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
 
 ## Docker Stack
 
-Docker stack resources are based on my RPI cluster project.
+Docker swarm/stack resources are based on my RPI cluster project.
+
+https://github.com/AustinTSchaffer/Raspberry-Pi-Cluster-Ansible
