@@ -32,7 +32,7 @@ class VersionDistributionProcessingService:
         ) in self.version_distributions_repo.iter_version_distributions(
             processed=False
         ):
-            self.process_version_distribution(version_distribution)
+            await self.process_version_distribution(version_distribution)
 
     async def process_version_distribution(
         self,
@@ -51,6 +51,7 @@ class VersionDistributionProcessingService:
         """
 
         if not ignore_processed_flag and distribution.processed:
+            logger.debug(f"{distribution.version_distribution_id} - Already processed.")
             return
 
         logger.info(

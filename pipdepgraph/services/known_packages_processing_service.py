@@ -54,7 +54,7 @@ class KnownPackageProcessingService:
             date_last_checked_before=datetime.datetime.now()
             - RECHECK_PACKAGE_NAME_INTERVAL
         ):
-            self.process_package_name(package, ignore_date_last_checked=True)
+            await self.process_package_name(package, ignore_date_last_checked=True)
 
     async def process_package_name(
         self,
@@ -89,12 +89,12 @@ class KnownPackageProcessingService:
         #
 
         now = datetime.datetime.now()
-        process_package_name = ignore_date_last_checked or (
+        should_process_package_name = ignore_date_last_checked or (
             package_name.date_last_checked is not None
             and package_name.date_last_checked < (now - RECHECK_PACKAGE_NAME_INTERVAL)
         )
 
-        if not process_package_name:
+        if not should_process_package_name:
             return
 
         logger.info(f"{package_name} - Getting version/distribution information.")
