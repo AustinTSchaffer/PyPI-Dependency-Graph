@@ -1,7 +1,9 @@
 from typing import AsyncIterable
 import datetime
 import itertools
+import textwrap
 
+import packaging.utils
 from psycopg_pool import AsyncConnectionPool
 from psycopg import AsyncCursor
 from psycopg.rows import dict_row
@@ -97,6 +99,47 @@ class KnownPackageNameRepository:
                 await self._update_known_package_names(package_names, cursor)
                 await cursor.execute("commit;")
 
+    async def get_known_package_name(
+        self, package_name: str | models.KnownPackageName
+    ) -> models.KnownPackageName | None:
+        """
+        Retrieves a known package name record from the database if it exists.
+        Canonicalizes the name before retrieval.
+        """
+
+        _package_name = (
+            package_name if isinstance(package_name, str) else package_name.package_name
+        )
+        _package_name = packaging.utils.canonicalize_name(_package_name)
+
+        params = [_package_name]
+        query = textwrap.dedent(
+            f"""
+                select
+                    kpn.package_name,
+                    kpn.date_discovered,
+                    kpn.date_last_checked
+                from {TABLE_NAME} kpn
+                where kpn.package_name = %s
+            """
+        )
+
+        async with (
+            self.db_pool.connection() as conn,
+            conn.cursor(row_factory=dict_row) as cursor,
+        ):
+            await cursor.execute(query, params)
+            results = await cursor.fetchall()
+            return (
+                None
+                if not results
+                else models.KnownPackageName(
+                    package_name=results[0]["package_name"],
+                    date_discovered=results[0]["date_discovered"],
+                    date_last_checked=results[0]["date_last_checked"],
+                )
+            )
+
     async def iter_known_package_names(
         self, date_last_checked_before: datetime.datetime | None = None
     ) -> AsyncIterable[models.KnownPackageName]:
@@ -112,7 +155,9 @@ class KnownPackageNameRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += " (kpn.date_last_checked is null or kpn.date_last_checked < %s) "
+                query += (
+                    " (kpn.date_last_checked is null or kpn.date_last_checked < %s) "
+                )
                 params.append(date_last_checked_before)
 
             await cursor.execute(query, params)
