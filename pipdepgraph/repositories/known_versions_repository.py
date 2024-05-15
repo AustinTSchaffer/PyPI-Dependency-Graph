@@ -28,7 +28,7 @@ class KnownVersionRepository:
             query = f"insert into {TABLE_NAME} (package_name, package_version, package_release, date_discovered) values "
 
             query += ",".join(
-                "( %s, %s, %s, coalesce(%s, now()) ) "
+                " ( %s, %s, %s, coalesce(%s, now()) ) "
                 for _ in range(len(known_versions))
             )
             query += " on conflict do nothing; "
@@ -85,7 +85,7 @@ class KnownVersionRepository:
                 else:
                     query += " and "
 
-                query += " package_name = %s "
+                query += " kv.package_name = %s "
                 params.append(package_name)
 
             if package_version is not None:
@@ -94,7 +94,7 @@ class KnownVersionRepository:
                 else:
                     query += " and "
 
-                query += " package_version = %s "
+                query += " kv.package_version = %s "
                 params.append(package_version)
 
             await cursor.execute(query, params)
