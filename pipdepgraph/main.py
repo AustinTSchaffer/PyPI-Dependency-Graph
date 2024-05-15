@@ -30,14 +30,21 @@ def get_connection_pool() -> AsyncConnectionPool:
 
 
 async def main():
+    logger.info("Starting.")
     async with get_connection_pool() as db_pool, aiohttp.ClientSession(
         headers={"User-Agent": "schaffer.austin.t@gmail.com"}
     ) as session:
+
+        logger.info("Initializing classes.")
+
         pypi = pypi_api.PypiApi(session)
         kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
         kvr = known_versions_repository.KnownVersionRepository(db_pool)
         vdr = version_distributions_repository.VersionDistributionRepository(db_pool)
         ddr = direct_dependencies_repository.DirectDependencyRepository(db_pool)
+
+        logger.info(f"Propagating package names from direct_dependencies back to known_package_names.")
+        await kpnr.propagate_dependency_names()
 
         async for package in kpnr.iter_known_package_names(
             date_last_checked_before=datetime.datetime.now()
@@ -157,9 +164,6 @@ async def main():
 
             except Exception as ex:
                 logger.error(f"{unprocessed_distribution.version_distribution_id} - Error while retrieving/persisting direct dependency info.", exc_info=ex)
-
-        logger.info(f"{unprocessed_distribution.version_distribution_id} - Propagating package names from direct_dependencies back to known_package_names.")
-        await kpnr.propagate_dependency_names()
 
 if __name__ == "__main__":
     root = logging.getLogger()

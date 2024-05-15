@@ -24,6 +24,19 @@ left join table_sizes ts on ts.table_name = t."table"
 order by t.idx;
 
 --
+-- package types with no dependencies.
+--
+
+select distinct package_type
+from version_distributions vd
+where package_type != 'bdist_wheel';
+
+select package_type, count(*)
+from version_distributions vd
+join direct_dependencies dd on dd.version_distribution_id = vd.version_distribution_id
+group by package_type;
+
+--
 -- Packages without any versions.
 --
 select count(*) over(), * from known_package_names kpn
@@ -54,7 +67,12 @@ select (
 
 select * from pypi_packages.known_package_names kpn order by date_discovered; 
 select * from pypi_packages.direct_dependencies dd;
-select * from pypi_packages.known_versions kv where kv.known_version_id = '1cbe2091-0fb0-4c6a-9919-e014de526dc9';
+
+select kv.*, vd.*
+from pypi_packages.known_versions kv
+join pypi_packages.version_distributions vd on kv.known_version_id = vd.known_version_id
+where vd.version_distribution_id = '3d23f139-0c17-47de-8374-e606cff469d3';
+
 select * from pypi_packages.known_versions kv where not processed;
 
 --
@@ -74,11 +92,15 @@ select
 from pypi_packages.direct_dependencies dd
 join pypi_packages.version_distributions vd on vd.version_distribution_id = dd.version_distribution_id
 join pypi_packages.known_versions kv on vd.known_version_id = kv.known_version_id
-where dd.dependency_name = 'grpcio';
+where dd.dependency_name = 'botocore';
 
 --
 -- Propagate newly discovered package names back into known_package_names
 --
+
+select distinct dependency_name
+from pypi_packages.direct_dependencies
+where dependency_name not in (select package_name from known_package_names);
 
 insert into pypi_packages.known_package_names (package_name)
 select distinct dependency_name from pypi_packages.direct_dependencies
@@ -96,7 +118,7 @@ where package_name ilike 'pycrdt'
 order by package_release desc;
 
 --
--- Self-referential package names
+-- Self-referential package dependencies
 --
 select
 	kv.package_name, kv.package_version,
@@ -165,5 +187,3 @@ order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_n
 -- DANGER
 -- delete from known_package_names where package_name != 'boto3';
 -- update known_package_names set date_last_checked = now() - interval '5 min';
-
-select count(*) from version_distributions vd where not vd.processed;
