@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version="0.1.0"
+version="0.2.0"
 
 docker image build \
     -t pypi_scraper/db:latest \
@@ -17,4 +17,5 @@ docker image build \
 docker image push --all-tags rpi-cluster-4b-1gb-1:5000/pypi_scraper/db
 docker image push --all-tags rpi-cluster-4b-1gb-1:5000/pypi_scraper/app
 
-docker stack deploy -c swarm.rpi-cluster.docker-compose.yml pypi_scraper
+docker service update --image "rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:$version" pypi_scraper_db
+docker service update --image "rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:$version" pypi_scraper_app
