@@ -1,7 +1,7 @@
 services:
   db:
     restart: always
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:latest
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:0.3.0
     networks:
       - db_net
     ports:
@@ -38,7 +38,7 @@ services:
 
   package_name_processor:
     restart: always
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:latest
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.3.0
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
       replicas: 1
@@ -64,11 +64,12 @@ services:
 
   version_distribution_processor:
     restart: always
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.3.0
     deploy:
       replicas: 12
       placement:
         constraints:
-          - node.labels.storage!=true    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:latest
+          - node.labels.storage!=true
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net

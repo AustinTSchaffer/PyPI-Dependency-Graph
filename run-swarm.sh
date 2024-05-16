@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version="0.2.0"
+version="0.3.0"
 
 docker image build \
     -t pypi_scraper/db:latest \
@@ -9,7 +9,6 @@ docker image build \
     -f db.Dockerfile .
 
 docker image push --all-tags rpi-cluster-4b-1gb-1:5000/pypi_scraper/db
-docker service update --image "rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:$version" pypi_scraper_db
 
 docker image build \
     -t pypi_scraper/app:latest \
@@ -18,4 +17,5 @@ docker image build \
     -f app.Dockerfile .
 
 docker image push --all-tags rpi-cluster-4b-1gb-1:5000/pypi_scraper/app
-docker service update --image "rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:$version" pypi_scraper_app
+
+docker stack deploy 
