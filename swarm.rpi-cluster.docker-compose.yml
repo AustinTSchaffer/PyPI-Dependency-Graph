@@ -42,7 +42,7 @@ services:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
-      replicas: 0
+      replicas: 1
       placement:
         constraints:
           - node.labels.storage!=true
@@ -68,7 +68,7 @@ services:
       condition: any
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     deploy:
-      replicas: 0
+      replicas: 1
       placement:
         constraints:
           - node.labels.storage!=true
