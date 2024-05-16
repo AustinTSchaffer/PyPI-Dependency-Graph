@@ -1,4 +1,4 @@
-from typing import AsyncIterable
+from typing import AsyncIterable, List
 import datetime
 import itertools
 import textwrap
@@ -32,10 +32,10 @@ class KnownPackageNameRepository:
             query = f"insert into {table_names.KNOWN_PACKAGE_NAMES} "
             params = []
 
-            match type(package_names[0]):
+            match package_names[0]:
                 case models.KnownPackageName:
                     query += (
-                        "(package_name, date_discovered, date_last_checked) values "
+                        " (package_name, date_discovered, date_last_checked) values "
                     )
                     query += ",".join(
                         "(%s, coalesce(%s, now()), %s)"
@@ -50,11 +50,11 @@ class KnownPackageNameRepository:
                         params[offset + 2] = package_name.date_last_checked
                         offset += 3
                 case str():
-                    query += "(package_name) values "
+                    query += " (package_name) values "
                     query += ",".join("(%s)" for _ in range(len(package_names)))
                     params = package_names
-                case t:
-                    raise ValueError(f"invalid type for package_names: {t}")
+                case v:
+                    raise ValueError(f"invalid type for package_names: {v}")
 
             query += "on conflict do nothing;"
             await cursor.execute(query, params)

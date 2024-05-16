@@ -173,11 +173,12 @@ class KnownPackageProcessingService:
         ]
 
         logger.debug(f"{package_name} - Saving distribution information.")
-        await self.version_distributions_repo.insert_version_distributions(
-            version_distributions
+        result: list[models.VersionDistribution] = await self.version_distributions_repo.insert_version_distributions(
+            version_distributions,
+            return_inserted=True
         )
 
-        async for vd in self.version_distributions_repo.iter_version_distributions(processed=False, package_name=package_name):
+        for vd in result:
             self.rabbitmq_publish_service.publish_version_distribution(vd)
 
         logger.debug(f"{package_name} - Marking package checked.")

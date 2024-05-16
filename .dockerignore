@@ -4,5 +4,4 @@
 **/*.pyo
 **/__pycache__
 
-sql/
 analysis/

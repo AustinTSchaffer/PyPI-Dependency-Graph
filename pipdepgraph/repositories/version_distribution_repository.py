@@ -18,7 +18,8 @@ class VersionDistributionRepository:
         self,
         version_distributions: list[models.VersionDistribution],
         cursor: AsyncCursor,
-    ) -> None:
+        return_inserted: bool = False,
+    ) -> AsyncIterable[models.VersionDistribution] | None:
         if not version_distributions:
             return None
 
@@ -48,7 +49,25 @@ class VersionDistributionRepository:
                 "( %s, %s, %s, %s, %s, %s, %s, %s ) "
                 for _ in range(len(version_distributions))
             )
-            query += " on conflict do nothing; "
+            query += " on conflict do nothing "
+
+            if return_inserted:
+                query += textwrap.dedent(
+                    """
+                        returning
+                            version_distribution_id,
+                            known_version_id,
+                            package_type,
+                            python_version,
+                            requires_python,
+                            upload_time,
+                            yanked,
+                            package_filename,
+                            package_url,
+                            processed,
+                            metadata_file_size
+                    """
+                )
 
             params = [None] * PARAMS_PER_INSERT * len(version_distributions)
 
@@ -65,18 +84,31 @@ class VersionDistributionRepository:
                 offset += PARAMS_PER_INSERT
 
             await cursor.execute(query, params)
+            if return_inserted:
+                return [
+                    models.VersionDistribution(**row)
+                    for row in await cursor.fetchall()
+                ]
+            else:
+                return None
 
     async def insert_version_distributions(
         self,
         version_distributions: list[models.VersionDistribution],
         cursor: AsyncCursor | None = None,
-    ):
+        return_inserted: bool = False,
+    ) -> None | list[models.VersionDistribution]:
         if cursor:
-            await self._insert_version_distributions(version_distributions, cursor)
+            return await self._insert_version_distributions(
+                version_distributions, cursor, return_inserted=return_inserted
+            )
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._insert_version_distributions(version_distributions, cursor)
+            async with self.db_pool.connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+                result = await self._insert_version_distributions(
+                    version_distributions, cursor, return_inserted=return_inserted
+                )
                 await cursor.execute("commit;")
+                return result
 
     async def _update_version_distributions(
         self,
@@ -117,7 +149,9 @@ class VersionDistributionRepository:
                 await cursor.execute("commit;")
 
     async def iter_version_distributions(
-        self, processed: bool | None = None, package_name: str | models.KnownPackageName | None = None,
+        self,
+        processed: bool | None = None,
+        package_name: str | models.KnownPackageName | None = None,
     ) -> AsyncIterable[models.VersionDistribution]:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
@@ -144,7 +178,11 @@ class VersionDistributionRepository:
 
             params = []
             if package_name is not None:
-                _package_name = package_name if isinstance(package_name, str) else package_name.package_name
+                _package_name = (
+                    package_name
+                    if isinstance(package_name, str)
+                    else package_name.package_name
+                )
                 if not params:
                     query += " where "
                 else:
