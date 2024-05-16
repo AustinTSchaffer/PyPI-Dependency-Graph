@@ -113,7 +113,7 @@ def consume_from_rabbitmq_target(
     ):
         channel: pika.adapters.blocking_connection.BlockingChannel
         common.declare_rabbitmq_infrastructure(channel)
-        channel.basic_qos(prefetch_count=100)
+        channel.basic_qos(prefetch_count=constants.RABBITMQ_VD_SUB_PREFETCH)
 
         def _version_distribution_consumer(
             ch: pika.channel.Channel,

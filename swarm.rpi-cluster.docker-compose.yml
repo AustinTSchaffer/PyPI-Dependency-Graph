@@ -92,6 +92,7 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "version_distribution_processor.{{.Task.Slot}}."
+      RABBITMQ_VD_SUB_PREFETCH: 1000
     depends_on:
       - db
       - broker
