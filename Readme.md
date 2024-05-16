@@ -28,6 +28,8 @@ The reason why I believe these can be improved is because there's no reverse-dep
 - Convert the version constraint information in `direct_deps` to Postgres ranges
 - Need to do some analysis to see how much version information changes between different "version metadata"
 - Sometimes the unprocessed record loader becomes a zombie.
+- Tons of documentation
+- Architecture diagram
 
 ## Estimate on Database Size
 
