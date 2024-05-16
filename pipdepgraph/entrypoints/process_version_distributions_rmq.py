@@ -3,6 +3,7 @@ import asyncio
 import json
 import queue
 import threading
+import uuid
 
 import pika
 import pika.adapters.asyncio_connection
@@ -138,9 +139,15 @@ def consume_from_rabbitmq_target(
                 )
                 ch.basic_nack(basic_deliver.delivery_tag)
 
+        consumer_tag = None
+        if constants.RABBITMQ_CTAG_PREFIX:
+            consumer_tag = f"{constants.RABBITMQ_CTAG_PREFIX}{uuid.uuid4()}"
+            logger.info("Starting RabbitMQ consumer with ctag: %s", consumer_tag)
+
         channel.basic_consume(
             queue=constants.RABBITMQ_VD_QNAME,
             on_message_callback=_version_distribution_consumer,
+            consumer_tag=consumer_tag,
             auto_ack=False,
         )
 

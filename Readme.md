@@ -13,18 +13,13 @@ The reason why I believe these can be improved is because there's no reverse-dep
 
 ## TODO
 
-- Need to parallelize this process
-  - Celery might be a good option for the Python process.
-  - Unclear what streaming backends are supported by Celery. RabbitMQ might be a good option.
-- Missing an automatic feedback mechanism for newly discovered package names. Currently running a SQL script manually, then rerunning the process.
-  - Let's add some batching/streaming
-  - Also a usecase for RabbitMQ + Celery?
 - Are the postgres indexes sufficient? Over-engineered?
 - Currently not parsing platform compatibility from filenames.
   - Have a process for parsing that info from .gz filenames.
   - Issue being related to the parsing script not handling `.egg` files.
 - Convert the version constraint information in `direct_deps` to Postgres ranges
 - Need to do some analysis to see how much version information changes between different "version metadata"
+- Sometimes the unprocessed record loader becomes a zombie.
 
 ## Estimate on Database Size
 

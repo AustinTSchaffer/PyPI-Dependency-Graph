@@ -59,11 +59,11 @@ services:
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
-
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
+      RABBITMQ_CTAG_PREFIX: "package_name_processor.{{.Task.Slot}}"
     depends_on:
       - db
       - broker
@@ -87,11 +87,11 @@ services:
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
-
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
+      RABBITMQ_CTAG_PREFIX: "version_distribution_processor.{{.Task.Slot}}"
     depends_on:
       - db
       - broker
@@ -114,11 +114,11 @@ services:
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
-
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
+      RABBITMQ_CTAG_PREFIX: "unprocessed_record_loader.{{.Task.Slot}}"
     depends_on:
       - db
       - broker
