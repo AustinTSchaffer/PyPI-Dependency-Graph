@@ -5,3 +5,6 @@
 **/__pycache__
 
 analysis/
+
+.dockerignore
+*docker*

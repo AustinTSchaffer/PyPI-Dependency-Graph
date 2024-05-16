@@ -42,6 +42,8 @@ async def main():
             rabbitmq_connection.channel() as channel,
         ):
             channel: pika.adapters.blocking_connection.BlockingChannel
+            common.declare_rabbitmq_infrastructure(channel)
+
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
             # We're doing the downstream process first, since it takes way longer

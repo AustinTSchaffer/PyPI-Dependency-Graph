@@ -44,7 +44,7 @@ where pypi_packages.canonicalize_package_name(kpn.package_name) != kpn.package_n
 --
 -- Percentage of known_versions with processed = true
 --
-explain select count(*) from pypi_packages.version_distributions vd where vd.processed = false
+select count(*) from pypi_packages.version_distributions vd where vd.processed = false
 
 select (
 	100.0 *
@@ -58,7 +58,7 @@ select * from pypi_packages.direct_dependencies dd;
 select kv.*, vd.*
 from pypi_packages.known_versions kv
 join pypi_packages.version_distributions vd on kv.known_version_id = vd.known_version_id
-where vd.version_distribution_id = '3d23f139-0c17-47de-8374-e606cff469d3';
+where vd.version_distribution_id = '781ad863-5c3f-453c-bf46-874b130d6c0f';
 
 select * from pypi_packages.known_versions kv where not processed;
 
@@ -85,14 +85,17 @@ where dd.dependency_name = 'botocore';
 -- Propagate newly discovered package names back into known_package_names
 --
 
-select distinct dependency_name
+select distinct dependency_name, count(*) over()
 from pypi_packages.direct_dependencies
 where dependency_name not in (select package_name from known_package_names);
 
 begin;
+
 insert into pypi_packages.known_package_names (package_name)
 select distinct dependency_name from pypi_packages.direct_dependencies
 on conflict do nothing;
+
+commit;
 rollback;
 
 --

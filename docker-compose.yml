@@ -40,6 +40,8 @@ services:
       dockerfile: app.Dockerfile
       tags:
         - pypi_scraper/app
+    deploy:
+      replicas: 0
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     networks:
       - db_net
@@ -61,13 +63,40 @@ services:
   version_distribution_processor:
     restart: always
     deploy:
-      replicas: 5
+      replicas: 0
     build:
       context: .
       dockerfile: app.Dockerfile
       tags:
         - pypi_scraper/app
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+    depends_on:
+      - db
+      - broker
+
+  unprocessed_record_loader:
+    restart: on-failure
+    deploy:
+      replicas: 1
+    build:
+      context: .
+      dockerfile: app.Dockerfile
+      tags:
+        - pypi_scraper/app
+    command: ["poetry", "run", "python", "pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
     networks:
       - db_net
       - broker_net
