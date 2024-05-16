@@ -3,7 +3,6 @@ import asyncio
 import json
 import queue
 import threading
-import time
 
 import pika
 import pika.adapters.asyncio_connection
@@ -26,30 +25,34 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('pipdepgraph.entrypoints.process_known_package_names_rmq')
 
 
 async def main():
+    logger.info("Initializing DB pool")
     async with (
         common.initialize_async_connection_pool() as db_pool,
         common.initialize_client_session() as session,
     ):
+        logger.info("Initializing repositories")
         kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
         kvr = known_version_repository.KnownVersionRepository(db_pool)
         vdr = version_distribution_repository.VersionDistributionRepository(db_pool)
 
-        rabbitmq_connection = common.initialize_rabbitmq_connection()
-
+        logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
 
+        logger.info("Initializing RabbitMQ Connection")
         with (
             common.initialize_rabbitmq_connection() as rabbitmq_connection,
             rabbitmq_connection.channel() as channel,
         ):
             channel: pika.adapters.blocking_connection.BlockingChannel
 
+            logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
+            logger.info("Initializing known_packages_processing_service.KnownPackageProcessingService")
             kpps = known_packages_processing_service.KnownPackageProcessingService(
                 kpnr=kpnr,
                 kvr=kvr,
@@ -58,9 +61,10 @@ async def main():
                 rmq_pub=rmq_pub,
             )
 
+            logger.info("Starting RabbitMQ consumer thread")
+
             known_package_names_queue: queue.Queue[models.KnownPackageName | str] = queue.Queue()
             ack_queue: queue.Queue[bool] = queue.Queue()
-
             consume_from_rabbitmq_thread = threading.Thread(
                 target=consume_from_rabbitmq_target,
                 args=[known_package_names_queue, ack_queue],
@@ -68,9 +72,9 @@ async def main():
 
             consume_from_rabbitmq_thread.start()
 
+            logger.info("Running.")
             while True:
                 known_package_name = None
-                basic_deliver = None
 
                 try:
                     known_package_name = known_package_names_queue.get(timeout=5.0)
@@ -80,11 +84,11 @@ async def main():
                 except queue.Empty as ex:
                     if not consume_from_rabbitmq_thread.is_alive():
                         logger.error("RabbitMQ consumer thread has died.")
-                        break
+                        return
 
                 except Exception as ex:
                     logger.error(
-                        f"Error while handling Known Package Name message: {known_package_name} {basic_deliver}",
+                        f"Error while handling Known Package Name message: {known_package_name}",
                         exc_info=ex,
                     )
                     ack_queue.put(False)
