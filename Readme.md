@@ -11,6 +11,14 @@ My hypothesis is that you can dramatically speed up package version resolution, 
 
 The reason why I believe these can be improved is because there's no reverse-dependency information available anywhere online. Essentially, each version of `boto3` knows which versions of `botocore` it depends on, but neither `botocore` nor PyPI know which versions of `boto3` depend on specific versions of `botocore`.
 
+## Screenshots
+
+![](./images/tmux-screenshot.png)
+
+![](./images/rabbitmq-screenshot.png)
+
+![](./images/postgres-screenshot.png)
+
 ## TODO
 
 - Are the postgres indexes sufficient? Over-engineered?
