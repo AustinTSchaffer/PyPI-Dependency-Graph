@@ -105,23 +105,7 @@ def consume_from_rabbitmq_target(
         connection.channel() as channel,
     ):
         channel: pika.adapters.blocking_connection.BlockingChannel
-
-        channel.exchange_declare(
-            constants.RABBITMQ_EXCHANGE, exchange_type="topic", durable=True
-        )
-        channel.queue_declare(constants.RABBITMQ_KPN_QNAME, durable=True)
-        channel.queue_bind(
-            exchange=constants.RABBITMQ_EXCHANGE,
-            queue=constants.RABBITMQ_KPN_QNAME,
-            routing_key=constants.RABBITMQ_KPN_RK,
-        )
-
-        channel.queue_declare(constants.RABBITMQ_VD_QNAME, durable=True)
-        channel.queue_bind(
-            exchange=constants.RABBITMQ_EXCHANGE,
-            queue=constants.RABBITMQ_VD_QNAME,
-            routing_key=constants.RABBITMQ_VD_RK,
-        )
+        common.declare_rabbitmq_infrastructure(channel)
 
         def _known_package_name_consumer(
             ch: pika.channel.Channel,

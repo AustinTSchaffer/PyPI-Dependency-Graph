@@ -9,7 +9,7 @@ class RabbitMqPublishService:
     def __init__(self, channel: pika.channel.Channel):
         self.channel = channel
 
-    def publish_known_package_version(self, kpn: models.KnownPackageName):
+    def publish_known_package_name(self, kpn: models.KnownPackageName):
         self.channel.basic_publish(
             exchange=constants.RABBITMQ_EXCHANGE,
             routing_key=f"{constants.RABBITMQ_KPN_RK_PREFIX}{kpn.package_name}",

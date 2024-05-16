@@ -10,6 +10,8 @@ from pipdepgraph.repositories import (
     version_distribution_repository,
 )
 
+from pipdepgraph.services import rabbitmq_publish_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,13 +23,13 @@ class VersionDistributionProcessingService:
         vdr: version_distribution_repository.VersionDistributionRepository,
         ddr: direct_dependency_repository.DirectDependencyRepository,
         pypi: pypi_api.PypiApi,
-        rmq: pika.BlockingConnection = None
+        rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None
     ):
         self.known_package_names_repo = kpnr
         self.version_distributions_repo = vdr
         self.direct_dependencies_repo = ddr
         self.pypi = pypi
-        self.rmq = rmq
+        self.rabbitmq_publish_service = rmq_pub
 
     async def run_from_database(self):
         """
@@ -100,9 +102,23 @@ class VersionDistributionProcessingService:
             logger.info(
                 f"{distribution.version_distribution_id} - Found {len(direct_dependencies)} direct dependencies."
             )
+
             await self.direct_dependencies_repo.insert_direct_dependencies(
                 direct_dependencies
             )
+
+            distinct_package_names = list({
+                dd.dependency_name
+                for dd in direct_dependencies
+            })
+
+            logger.debug(f"{distribution.version_distribution_id} - Propagating {len(distinct_package_names)} back to Postgres.")
+            result = await self.known_package_names_repo.insert_known_package_names(distinct_package_names, return_inserted=(self.rabbitmq_publish_service is not None))
+
+            if self.rabbitmq_publish_service is not None:
+                logger.debug(f"{distribution.version_distribution_id} - Propagating {len(result)} package names to RabbitMQ.")
+                for kpn in result:
+                    self.rabbitmq_publish_service.publish_known_package_name(kpn)
 
             logger.debug(f"{distribution.version_distribution_id} - Marking processed.")
             distribution.metadata_file_size = metadata_file_size

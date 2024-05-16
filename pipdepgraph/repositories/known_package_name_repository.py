@@ -20,9 +20,10 @@ class KnownPackageNameRepository:
         self,
         package_names: list[models.KnownPackageName] | list[str],
         cursor: AsyncCursor,
-    ):
+        return_inserted: bool = False,
+    ) -> list[models.KnownPackageName]:
         if not package_names:
-            return
+            return []
 
         MAX_PARAMS_PER_INSERT = 3
 
@@ -56,20 +57,32 @@ class KnownPackageNameRepository:
                 case v:
                     raise ValueError(f"invalid type for package_names: {v}")
 
-            query += "on conflict do nothing;"
+            query += " on conflict do nothing "
+            if return_inserted:
+                query += " returning package_name, date_discovered, date_last_checked "
+
             await cursor.execute(query, params)
+            if return_inserted:
+                return [
+                    models.KnownPackageName(**row)
+                    for row in await cursor.fetchall()
+                ]
+            else:
+                return []
 
     async def insert_known_package_names(
         self,
         package_names: list[models.KnownPackageName | str],
         cursor: AsyncCursor | None = None,
-    ):
+        return_inserted: bool = False,
+    ) -> list[models.KnownPackageName]:
         if cursor:
-            await self._insert_known_package_names(package_names, cursor)
+            return await self._insert_known_package_names(package_names, cursor, return_inserted=return_inserted)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._insert_known_package_names(package_names, cursor)
+            async with self.db_pool.connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+                result = await self._insert_known_package_names(package_names, cursor, return_inserted=return_inserted)
                 await cursor.execute("commit;")
+                return result
 
     async def _update_known_package_names(
         self, package_names: list[models.KnownPackageName], cursor: AsyncCursor

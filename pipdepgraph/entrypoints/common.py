@@ -8,6 +8,7 @@ import threading
 import aiohttp
 import pika
 import pika.adapters.asyncio_connection
+import pika.adapters.blocking_connection
 import pika.credentials
 from psycopg_pool import AsyncConnectionPool
 
@@ -53,22 +54,20 @@ def initialize_rabbitmq_connection() -> pika.BlockingConnection:
     rabbitmq_connection = pika.BlockingConnection(pika.ConnectionParameters(**params))
     return rabbitmq_connection
 
-_loop = asyncio.new_event_loop()
+def declare_rabbitmq_infrastructure(channel: pika.adapters.blocking_connection.BlockingChannel):
+    channel.exchange_declare(
+        constants.RABBITMQ_EXCHANGE, exchange_type="topic", durable=True
+    )
+    channel.queue_declare(constants.RABBITMQ_KPN_QNAME, durable=True)
+    channel.queue_bind(
+        exchange=constants.RABBITMQ_EXCHANGE,
+        queue=constants.RABBITMQ_KPN_QNAME,
+        routing_key=constants.RABBITMQ_KPN_RK,
+    )
 
-_thr = threading.Thread(target=_loop.run_forever, name="Async Runner",
-                        daemon=True)
-
-def synchronous(f):
-    """
-    Decorator for running `f`, an asynchronous method, within a synchronous
-    function call, using a separate private daemon thread.
-    """
-
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        if not _thr.is_alive():
-            _thr.start()
-        future = asyncio.run_coroutine_threadsafe(f(*args, **kwargs), _loop)
-        return future.result()
-
-    return wrapper
+    channel.queue_declare(constants.RABBITMQ_VD_QNAME, durable=True)
+    channel.queue_bind(
+        exchange=constants.RABBITMQ_EXCHANGE,
+        queue=constants.RABBITMQ_VD_QNAME,
+        routing_key=constants.RABBITMQ_VD_RK,
+    )

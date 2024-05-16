@@ -19,9 +19,9 @@ class VersionDistributionRepository:
         version_distributions: list[models.VersionDistribution],
         cursor: AsyncCursor,
         return_inserted: bool = False,
-    ) -> AsyncIterable[models.VersionDistribution] | None:
+    ) -> list[models.VersionDistribution]:
         if not version_distributions:
-            return None
+            return []
 
         PARAMS_PER_INSERT = 8
         for version_distributions in itertools.batched(
@@ -90,14 +90,14 @@ class VersionDistributionRepository:
                     for row in await cursor.fetchall()
                 ]
             else:
-                return None
+                return []
 
     async def insert_version_distributions(
         self,
         version_distributions: list[models.VersionDistribution],
         cursor: AsyncCursor | None = None,
         return_inserted: bool = False,
-    ) -> None | list[models.VersionDistribution]:
+    ) -> list[models.VersionDistribution]:
         if cursor:
             return await self._insert_version_distributions(
                 version_distributions, cursor, return_inserted=return_inserted

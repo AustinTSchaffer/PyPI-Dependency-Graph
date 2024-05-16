@@ -173,13 +173,15 @@ class KnownPackageProcessingService:
         ]
 
         logger.debug(f"{package_name} - Saving distribution information.")
-        result: list[models.VersionDistribution] = await self.version_distributions_repo.insert_version_distributions(
+        result = await self.version_distributions_repo.insert_version_distributions(
             version_distributions,
-            return_inserted=True
+            return_inserted=(self.rabbitmq_publish_service is not None)
         )
 
-        for vd in result:
-            self.rabbitmq_publish_service.publish_version_distribution(vd)
+        if self.rabbitmq_publish_service is not None:
+            logger.debug(f"{package_name} - Publishing new version distributions to RabbitMQ.")
+            for vd in result:
+                self.rabbitmq_publish_service.publish_version_distribution(vd)
 
         logger.debug(f"{package_name} - Marking package checked.")
         package_name.date_last_checked = now
