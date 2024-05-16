@@ -1,27 +1,12 @@
-with table_sizes as (
-	select
-	  table_name,
-	  pg_size_pretty(pg_total_relation_size(quote_ident(table_name))) as size_pretty,
-	  pg_total_relation_size(quote_ident(table_name)) as size_bytes
-	from information_schema.tables
-	where table_schema = 'pypi_packages'
-)
 select
-	t."table",
-	t."count" as "rows",
-	ts.size_pretty,
-	ts.size_bytes
-from (
-	select 1 as "idx", 'known_package_names' as "table", count(*) from pypi_packages.known_package_names kpn
-	union
-	select 2 as "idx", 'known_versions' as "table", count(*) from pypi_packages.known_versions kv
-	union
-	select 3 as "idx", 'version_distributions' as "table", count(*) from pypi_packages.version_distributions kv
-	union
-	select 4 as "idx", 'direct_dependencies' as "table", count(*) from pypi_packages.direct_dependencies dd
-) t
-left join table_sizes ts on ts.table_name = t."table"
-order by t.idx;
+  table_name,
+  reltuples as row_count_estimate,
+  pg_size_pretty(pg_total_relation_size('pypi_packages.' || table_name)) as size_pretty,
+  pg_total_relation_size('pypi_packages.' || table_name) as size_bytes
+from information_schema.tables
+left join pg_class on relname = table_name
+where table_schema = 'pypi_packages'
+order by row_count_estimate;
 
 --
 -- package types with no dependencies.
@@ -59,10 +44,12 @@ where pypi_packages.canonicalize_package_name(kpn.package_name) != kpn.package_n
 --
 -- Percentage of known_versions with processed = true
 --
+explain select count(*) from pypi_packages.version_distributions vd where vd.processed = false
+
 select (
 	100.0 *
-	(select count(*)::float from pypi_packages.version_distributions vd where vd.processed = true) /
-	(select count(*)::float from pypi_packages.version_distributions vd)
+	(select count(vd.processed)::float from pypi_packages.version_distributions vd where vd.processed = true) /
+	(select count(vd.processed)::float from pypi_packages.version_distributions vd)
 ) as "percentage complete";
 
 select * from pypi_packages.known_package_names kpn order by date_discovered; 
@@ -102,9 +89,11 @@ select distinct dependency_name
 from pypi_packages.direct_dependencies
 where dependency_name not in (select package_name from known_package_names);
 
+begin;
 insert into pypi_packages.known_package_names (package_name)
 select distinct dependency_name from pypi_packages.direct_dependencies
 on conflict do nothing;
+rollback;
 
 --
 -- pycrdt has a ton of distributions.
@@ -187,3 +176,27 @@ order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_n
 -- DANGER
 -- delete from known_package_names where package_name != 'boto3';
 -- update known_package_names set date_last_checked = now() - interval '5 min';
+
+  SELECT blocked_locks.pid     AS blocked_pid,
+         blocked_activity.usename  AS blocked_user,
+         blocking_locks.pid     AS blocking_pid,
+         blocking_activity.usename AS blocking_user,
+         blocked_activity.query    AS blocked_statement,
+         blocking_activity.query   AS current_statement_in_blocking_process
+   FROM  pg_catalog.pg_locks         blocked_locks
+    JOIN pg_catalog.pg_stat_activity blocked_activity  ON blocked_activity.pid = blocked_locks.pid
+    JOIN pg_catalog.pg_locks         blocking_locks 
+        ON blocking_locks.locktype = blocked_locks.locktype
+        AND blocking_locks.database IS NOT DISTINCT FROM blocked_locks.database
+        AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
+        AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page
+        AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple
+        AND blocking_locks.virtualxid IS NOT DISTINCT FROM blocked_locks.virtualxid
+        AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid
+        AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid
+        AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid
+        AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid
+        AND blocking_locks.pid != blocked_locks.pid
+    JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid
+   WHERE NOT blocked_locks.granted;
+

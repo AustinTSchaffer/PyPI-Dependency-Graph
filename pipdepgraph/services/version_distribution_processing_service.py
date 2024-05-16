@@ -1,11 +1,13 @@
 import logging
 
 import packaging.utils
+import pika
 
 from pipdepgraph import models, pypi_api
 from pipdepgraph.repositories import (
-    version_distributions_repository,
-    direct_dependencies_repository,
+    direct_dependency_repository,
+    known_package_name_repository,
+    version_distribution_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -15,13 +17,17 @@ class VersionDistributionProcessingService:
     def __init__(
         self,
         *,
-        vdr: version_distributions_repository.VersionDistributionRepository,
-        ddr: direct_dependencies_repository.DirectDependencyRepository,
+        kpnr: known_package_name_repository.KnownPackageNameRepository,
+        vdr: version_distribution_repository.VersionDistributionRepository,
+        ddr: direct_dependency_repository.DirectDependencyRepository,
         pypi: pypi_api.PypiApi,
+        rmq: pika.BlockingConnection = None
     ):
+        self.known_package_names_repo = kpnr
         self.version_distributions_repo = vdr
         self.direct_dependencies_repo = ddr
         self.pypi = pypi
+        self.rmq = rmq
 
     async def run_from_database(self):
         """
@@ -44,7 +50,7 @@ class VersionDistributionProcessingService:
 
         - Fetches the version distribution's `.metadata` file from the PyPI API.
         - Parses the metadata file, extracting the package's direct dependencies.
-        -
+        - ...
 
         `ignore_processed_flag` can be used to force this method to reprocess a distribution that
         has already been processed.

@@ -18,6 +18,21 @@ services:
       - db:/var/lib/postgresql/data
       - './sql:/docker-entrypoint-initdb.d/'
 
+  broker:
+    restart: always
+    image: rabbitmq:3-management-alpine
+    networks:
+      - broker_net
+    ports:
+      - '8080:15672'
+      - '5672:5672'
+    environment:
+      RABBITMQ_DEFAULT_USER: pypi_scraper
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_VHOST: pypi_scraper
+    volumes:
+      - broker:/var/lib/rabbitmq
+
   app:
     restart: always
     build:
@@ -27,16 +42,25 @@ services:
         - pypi_scraper/app
     networks:
       - db_net
+      - broker_net
     environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: defaultdb
-      POSTGRES_HOST: db
+
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
     depends_on:
       - db
+      - broker
 
 volumes:
   db:
+  broker:
 
 networks:
   db_net:
+  broker_net:

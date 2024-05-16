@@ -6,8 +6,7 @@ from psycopg_pool import AsyncConnectionPool
 from psycopg import AsyncCursor
 
 from pipdepgraph import models, constants
-
-TABLE_NAME = "pypi_packages.direct_dependencies"
+from pipdepgraph.repositories import table_names
 
 
 class DirectDependencyRepository:
@@ -29,7 +28,7 @@ class DirectDependencyRepository:
         ):
             query = textwrap.dedent(
                 f"""
-                    insert into {TABLE_NAME}
+                    insert into {table_names.DIRECT_DEPENDENCIES}
                     (
                         version_distribution_id,
                         extras,

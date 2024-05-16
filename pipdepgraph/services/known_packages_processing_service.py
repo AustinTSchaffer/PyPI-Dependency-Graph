@@ -7,8 +7,12 @@ import packaging.version
 from pipdepgraph import models, pypi_api
 from pipdepgraph.repositories import (
     known_package_name_repository,
-    known_versions_repository,
-    version_distributions_repository,
+    known_version_repository,
+    version_distribution_repository,
+)
+
+from pipdepgraph.services import (
+    rabbitmq_publish_service,
 )
 
 RECHECK_PACKAGE_NAME_INTERVAL = datetime.timedelta(hours=1)
@@ -25,14 +29,16 @@ class KnownPackageProcessingService:
         self,
         *,
         kpnr: known_package_name_repository.KnownPackageNameRepository,
-        kvr: known_versions_repository.KnownVersionRepository,
-        vdr: version_distributions_repository.VersionDistributionRepository,
+        kvr: known_version_repository.KnownVersionRepository,
+        vdr: version_distribution_repository.VersionDistributionRepository,
         pypi: pypi_api.PypiApi,
+        rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None,
     ):
         self.known_package_names_repo = kpnr
         self.known_versions_repo = kvr
         self.version_distributions_repo = vdr
         self.pypi = pypi
+        self.rabbitmq_publish_service = rmq_pub
 
     async def propagate_discovered_package_names(
         self,
@@ -74,14 +80,23 @@ class KnownPackageProcessingService:
         have been processed recently.
         """
 
-        await self.known_package_names_repo.insert_known_package_names([package_name])
+        logger.info(f"Processing package name: {package_name}")
+
         _package_name = await self.known_package_names_repo.get_known_package_name(
             package_name
         )
+
         if not _package_name:
-            raise ValueError(
-                f'Error storing/retrieving package named "{package_name}" to/from database.'
+            await self.known_package_names_repo.insert_known_package_names([package_name])
+            _package_name = await self.known_package_names_repo.get_known_package_name(
+                package_name
             )
+
+            if not _package_name:
+                raise ValueError(
+                    f'Error storing/retrieving package named "{package_name}" to/from database.'
+                )
+
         package_name = _package_name
 
         #
@@ -89,9 +104,10 @@ class KnownPackageProcessingService:
         #
 
         now = datetime.datetime.now()
-        should_process_package_name = ignore_date_last_checked or (
-            package_name.date_last_checked is not None
-            and package_name.date_last_checked < (now - RECHECK_PACKAGE_NAME_INTERVAL)
+        should_process_package_name = (
+            ignore_date_last_checked or
+            package_name.date_last_checked is None or
+            package_name.date_last_checked < (now - RECHECK_PACKAGE_NAME_INTERVAL)
         )
 
         if not should_process_package_name:
@@ -160,6 +176,9 @@ class KnownPackageProcessingService:
         await self.version_distributions_repo.insert_version_distributions(
             version_distributions
         )
+
+        async for vd in self.version_distributions_repo.iter_version_distributions(processed=False, package_name=package_name):
+            self.rabbitmq_publish_service.publish_version_distribution(vd)
 
         logger.debug(f"{package_name} - Marking package checked.")
         package_name.date_last_checked = now

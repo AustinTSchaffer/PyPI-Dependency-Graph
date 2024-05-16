@@ -7,8 +7,7 @@ from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
-
-TABLE_NAME = "pypi_packages.version_distributions"
+from pipdepgraph.repositories import table_names
 
 
 class VersionDistributionRepository:
@@ -30,7 +29,7 @@ class VersionDistributionRepository:
         ):
             query = textwrap.dedent(
                 f"""
-                    insert into {TABLE_NAME}
+                    insert into {table_names.VERSION_DISTRIBUTIONS}
                     (
                         known_version_id,
                         package_type,
@@ -89,7 +88,7 @@ class VersionDistributionRepository:
 
         query = textwrap.dedent(
             f"""
-                update {TABLE_NAME}
+                update {table_names.VERSION_DISTRIBUTIONS}
                 set
                     processed = %s,
                     metadata_file_size = coalesce(%s, metadata_file_size)
@@ -118,7 +117,7 @@ class VersionDistributionRepository:
                 await cursor.execute("commit;")
 
     async def iter_version_distributions(
-        self, processed: bool | None = None
+        self, processed: bool | None = None, package_name: str | models.KnownPackageName | None = None,
     ) -> AsyncIterable[models.VersionDistribution]:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
@@ -137,11 +136,22 @@ class VersionDistributionRepository:
                         vd.package_url,
                         vd.metadata_file_size,
                         vd.processed
-                    from {TABLE_NAME} vd
+                    from {table_names.VERSION_DISTRIBUTIONS} vd
+                    {"" if package_name is None else f" left join {table_names.KNOWN_VERSIONS} kv on kv.known_version_id = vd.known_version_id "}
+                    {"" if package_name is None else f" left join {table_names.KNOWN_PACKAGE_NAMES} kpn on kpn.package_name = kv.package_name "}
                 """
             )
 
             params = []
+            if package_name is not None:
+                _package_name = package_name if isinstance(package_name, str) else package_name.package_name
+                if not params:
+                    query += " where "
+                else:
+                    query += " and "
+                query += " kpn.package_name = %s "
+                params.append(_package_name)
+
             if processed is not None:
                 if not params:
                     query += " where "

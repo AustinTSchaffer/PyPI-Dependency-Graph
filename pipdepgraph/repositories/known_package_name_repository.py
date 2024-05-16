@@ -9,10 +9,7 @@ from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
-from pipdepgraph.repositories import direct_dependencies_repository
-
-TABLE_NAME = "pypi_packages.known_package_names"
-DEFAULT_SELECT_BATCH_SIZE = 64
+from pipdepgraph.repositories import table_names
 
 
 class KnownPackageNameRepository:
@@ -32,7 +29,7 @@ class KnownPackageNameRepository:
         for package_names in itertools.batched(
             package_names, constants.POSTGRES_MAX_QUERY_PARAMS // MAX_PARAMS_PER_INSERT
         ):
-            query = f"insert into {TABLE_NAME} "
+            query = f"insert into {table_names.KNOWN_PACKAGE_NAMES} "
             params = []
 
             match type(package_names[0]):
@@ -81,7 +78,7 @@ class KnownPackageNameRepository:
             return
 
         query = (
-            f"update {TABLE_NAME} set date_last_checked = %s where package_name = %s;"
+            f"update {table_names.KNOWN_PACKAGE_NAMES} set date_last_checked = %s where package_name = %s;"
         )
         params_seq = [(pn.date_last_checked, pn.package_name) for pn in package_names]
 
@@ -119,7 +116,7 @@ class KnownPackageNameRepository:
                     kpn.package_name,
                     kpn.date_discovered,
                     kpn.date_last_checked
-                from {TABLE_NAME} kpn
+                from {table_names.KNOWN_PACKAGE_NAMES} kpn
                 where kpn.package_name = %s
             """
         )
@@ -147,7 +144,7 @@ class KnownPackageNameRepository:
             self.db_pool.connection() as conn,
             conn.cursor(row_factory=dict_row) as cursor,
         ):
-            query = f"select kpn.package_name, kpn.date_discovered, kpn.date_last_checked from {TABLE_NAME} kpn"
+            query = f"select kpn.package_name, kpn.date_discovered, kpn.date_last_checked from {table_names.KNOWN_PACKAGE_NAMES} kpn"
 
             params = []
             if date_last_checked_before is not None:
@@ -166,8 +163,8 @@ class KnownPackageNameRepository:
 
     async def _propagate_dependency_names(self, cursor: AsyncCursor):
         query = f"""
-            insert into {TABLE_NAME} (package_name)
-            select distinct dependency_name from {direct_dependencies_repository.TABLE_NAME}
+            insert into {table_names.KNOWN_PACKAGE_NAMES} (package_name)
+            select distinct dependency_name from {table_names.DIRECT_DEPENDENCIES}
             on conflict do nothing;
         """
 

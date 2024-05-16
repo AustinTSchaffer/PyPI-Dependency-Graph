@@ -7,9 +7,7 @@ from psycopg import AsyncCursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
-
-TABLE_NAME = "pypi_packages.known_versions"
-
+from pipdepgraph.repositories import table_names
 
 class KnownVersionRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
@@ -25,7 +23,7 @@ class KnownVersionRepository:
         for known_versions in itertools.batched(
             known_versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
         ):
-            query = f"insert into {TABLE_NAME} (package_name, package_version, package_release, date_discovered) values "
+            query = f"insert into {table_names.KNOWN_VERSIONS} (package_name, package_version, package_release, date_discovered) values "
 
             query += ",".join(
                 " ( %s, %s, %s, coalesce(%s, now()) ) "
@@ -73,7 +71,7 @@ class KnownVersionRepository:
                         kv.package_version,
                         kv.package_release,
                         kv.date_discovered
-                    from {TABLE_NAME} kv
+                    from {table_names.KNOWN_VERSIONS} kv
                 """
             )
 
