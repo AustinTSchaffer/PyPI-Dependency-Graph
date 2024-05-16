@@ -37,7 +37,8 @@ services:
       - /mnt/ssd/rabbit:/var/lib/postgresql/data
 
   package_name_processor:
-    restart: always
+    restart_policy:
+      condition: any
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
@@ -63,7 +64,8 @@ services:
       - broker
 
   version_distribution_processor:
-    restart: always
+    restart_policy:
+      condition: any
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     deploy:
       replicas: 0
@@ -89,7 +91,8 @@ services:
       - broker
 
   unprocessed_record_loader:
-    restart: on-failure
+    restart_policy:
+      condition: on-failure
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     deploy:
       replicas: 1
