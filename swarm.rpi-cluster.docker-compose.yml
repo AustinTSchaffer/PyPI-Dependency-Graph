@@ -15,7 +15,7 @@ services:
         condition: any
       placement:
           constraints:
-            - node.labels.storage==true
+            - node.labels.role==db
     volumes:
       - /mnt/ssd/postgres:/var/lib/postgresql/data
 
@@ -36,9 +36,9 @@ services:
         condition: any
       placement:
           constraints:
-            - node.labels.storage==true
+            - node.labels.role==broker
     volumes:
-      - /mnt/ssd/rabbit:/var/lib/postgresql/data
+      - broker:/var/lib/postgresql/data
 
   package_name_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
@@ -49,8 +49,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.storage!=true
-          - node.labels.role!=manager
+          - node.labels.role==app
     networks:
       - db_net
       - broker_net
@@ -76,8 +75,7 @@ services:
       replicas: 12
       placement:
         constraints:
-          - node.labels.storage!=true
-          - node.labels.role!=manager
+          - node.labels.role==app
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net
@@ -105,7 +103,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.storage==true
+          - node.labels.role==app
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
     networks:
       - db_net
@@ -127,3 +125,6 @@ services:
 networks:
   db_net:
   broker_net:
+
+volumes:
+  broker:
