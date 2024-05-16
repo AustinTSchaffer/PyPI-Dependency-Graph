@@ -1,7 +1,7 @@
 services:
   db:
     restart: always
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:0.3.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:${STACK_VERSION:-latest}
     networks:
       - db_net
     ports:
@@ -41,7 +41,7 @@ services:
       - /mnt/ssd/rabbit:/var/lib/postgresql/data
 
   package_name_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
       restart_policy:
@@ -69,7 +69,7 @@ services:
       - broker
 
   version_distribution_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     deploy:
       restart_policy:
         condition: any
@@ -97,7 +97,7 @@ services:
       - broker
 
   unprocessed_record_loader:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     deploy:
       restart_policy:
         condition: on-failure
