@@ -11,6 +11,8 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: defaultdb
     deploy:
+      restart_policy:
+        condition: any
       placement:
           constraints:
             - node.labels.storage==true
@@ -30,6 +32,8 @@ services:
       RABBITMQ_DEFAULT_PASS: password
       RABBITMQ_DEFAULT_VHOST: pypi_scraper
     deploy:
+      restart_policy:
+        condition: any
       placement:
           constraints:
             - node.labels.storage==true
@@ -37,11 +41,11 @@ services:
       - /mnt/ssd/rabbit:/var/lib/postgresql/data
 
   package_name_processor:
-    restart_policy:
-      condition: any
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
+      restart_policy:
+        condition: any
       replicas: 1
       placement:
         constraints:
@@ -64,10 +68,10 @@ services:
       - broker
 
   version_distribution_processor:
-    restart_policy:
-      condition: any
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     deploy:
+      restart_policy:
+        condition: any
       replicas: 1
       placement:
         constraints:
@@ -91,14 +95,14 @@ services:
       - broker
 
   unprocessed_record_loader:
-    restart_policy:
-      condition: on-failure
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.4.0
     deploy:
+      restart_policy:
+        condition: on-failure
       replicas: 1
       placement:
         constraints:
-          - node.labels.storage!=true
+          - node.labels.storage==true
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
     networks:
       - db_net
