@@ -50,7 +50,7 @@ services:
       placement:
         constraints:
           - node.labels.storage!=true
-          - node.role!="manager"
+          - node.labels.role!=manager
     networks:
       - db_net
       - broker_net
@@ -73,11 +73,11 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 1
+      replicas: 12
       placement:
         constraints:
           - node.labels.storage!=true
-          - node.role!="manager"
+          - node.labels.role!=manager
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net
