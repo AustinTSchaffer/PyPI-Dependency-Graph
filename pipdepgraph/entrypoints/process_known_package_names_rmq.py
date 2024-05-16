@@ -111,6 +111,7 @@ def consume_from_rabbitmq_target(
     ):
         channel: pika.adapters.blocking_connection.BlockingChannel
         common.declare_rabbitmq_infrastructure(channel)
+        channel.basic_qos(prefetch_count=constants.RABBITMQ_KPN_SUB_PREFETCH)
 
         def _known_package_name_consumer(
             ch: pika.channel.Channel,

@@ -26,6 +26,7 @@ RABBITMQ_EXCHANGE = os.getenv("RABBITMQ_EXCHANGE", "pypi_scraper")
 RABBITMQ_KPN_QNAME = "known_package_names"
 RABBITMQ_KPN_RK_PREFIX = "known_package_name."
 RABBITMQ_KPN_RK = f"{RABBITMQ_KPN_RK_PREFIX}#"
+RABBITMQ_KPN_SUB_PREFETCH = int(os.getenv("RABBITMQ_KPN_SUB_PREFETCH", 50))
 
 RABBITMQ_VD_QNAME = "version_distributions"
 RABBITMQ_VD_RK_PREFIX = "version_distribution."
