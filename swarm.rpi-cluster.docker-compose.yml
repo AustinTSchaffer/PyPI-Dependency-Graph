@@ -50,6 +50,7 @@ services:
       placement:
         constraints:
           - node.labels.storage!=true
+          - node.role!="manager"
     networks:
       - db_net
       - broker_net
@@ -76,6 +77,7 @@ services:
       placement:
         constraints:
           - node.labels.storage!=true
+          - node.role!="manager"
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net
