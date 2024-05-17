@@ -27,7 +27,7 @@ The reason why I believe these can be improved is because there's no reverse-dep
   - Issue being related to the parsing script not handling `.egg` files.
 - Convert the version constraint information in `direct_deps` to Postgres ranges
 - Need to do some analysis to see how much version information changes between different "version metadata"
-- Sometimes the unprocessed record loader becomes a zombie.
+- Sometimes the unprocessed record loader becomes a zombie. Also pretty sure that at the DB's current size, running the loader causes all of the app nodes to crash.
 - Tons of documentation
 - Architecture diagram
 - Nothing older than 5 years please.
