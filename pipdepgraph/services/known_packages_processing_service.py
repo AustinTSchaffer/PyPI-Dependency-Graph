@@ -124,6 +124,9 @@ class KnownPackageProcessingService:
         )
 
         if not package_vers_dists_result:
+            logger.debug(f"{package_name} - Marking package checked.")
+            package_name.date_last_checked = now
+            await self.known_package_names_repo.update_known_package_names([package_name], cursor=cursor)
             return
 
         known_versions: list[models.KnownVersion] = [
