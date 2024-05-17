@@ -122,6 +122,7 @@ def consume_from_rabbitmq_target(
                     known_package_names_queue.put(package_name)
 
                 ack = ack_queue.get()
+
                 if ack:
                     ch.basic_ack(basic_deliver.delivery_tag)
                 else:

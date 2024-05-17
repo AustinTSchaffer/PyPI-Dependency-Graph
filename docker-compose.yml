@@ -41,7 +41,7 @@ services:
       tags:
         - pypi_scraper/app
     deploy:
-      replicas: 2
+      replicas: 1
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     networks:
       - db_net
@@ -63,7 +63,7 @@ services:
   version_distribution_processor:
     restart: always
     deploy:
-      replicas: 20
+      replicas: 0
     build:
       context: .
       dockerfile: app.Dockerfile
@@ -90,7 +90,7 @@ services:
   unprocessed_record_loader:
     restart: on-failure
     deploy:
-      replicas: 1
+      replicas: 0
     build:
       context: .
       dockerfile: app.Dockerfile
