@@ -36,12 +36,12 @@ async def main():
 
         logger.info("Initializing known_packages_processing_service.KnownPackageProcessingService")
         kpps = known_packages_processing_service.KnownPackageProcessingService(
-            kpnr=kpnr, kvr=kvr, vdr=vdr, pypi=pypi
+            kpnr=kpnr, kvr=kvr, vdr=vdr, pypi=pypi, db_pool=db_pool
         )
 
         logger.info("Initializing version_distribution_processing_service.VersionDistributionProcessingService")
         vdps = version_distribution_processing_service.VersionDistributionProcessingService(
-            vdr=vdr, ddr=ddr, pypi=pypi
+            vdr=vdr, ddr=ddr, pypi=pypi, db_pool=db_pool
         )
 
         logger.info("Running.")

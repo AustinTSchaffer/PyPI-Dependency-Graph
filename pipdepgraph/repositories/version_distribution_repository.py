@@ -85,9 +85,10 @@ class VersionDistributionRepository:
 
             await cursor.execute(query, params)
             if return_inserted:
+                rows = await cursor.fetchall()
                 return [
                     models.VersionDistribution(**row)
-                    for row in await cursor.fetchall()
+                    for row in rows
                 ]
             else:
                 return []

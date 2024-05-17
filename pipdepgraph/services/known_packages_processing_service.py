@@ -10,6 +10,8 @@ from pipdepgraph.repositories import (
     known_version_repository,
     version_distribution_repository,
 )
+from psycopg_pool import AsyncConnectionPool
+from psycopg.rows import dict_row
 
 from pipdepgraph.services import (
     rabbitmq_publish_service,
@@ -28,12 +30,14 @@ class KnownPackageProcessingService:
     def __init__(
         self,
         *,
+        db_pool: AsyncConnectionPool,
         kpnr: known_package_name_repository.KnownPackageNameRepository,
         kvr: known_version_repository.KnownVersionRepository,
         vdr: version_distribution_repository.VersionDistributionRepository,
         pypi: pypi_api.PypiApi,
         rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None,
     ):
+        self.db_pool = db_pool
         self.known_package_names_repo = kpnr
         self.known_versions_repo = kvr
         self.version_distributions_repo = vdr
@@ -143,46 +147,55 @@ class KnownPackageProcessingService:
                     exc_info=ex,
                 )
 
-        logger.debug(f"{package_name} - Saving version information.")
-        await self.known_versions_repo.insert_known_versions(known_versions)
+        async with self.db_pool.connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            try:
+                logger.debug(f"{package_name} - Saving version information.")
+                await self.known_versions_repo.insert_known_versions(known_versions, cursor=cursor)
 
-        logger.debug(f"{package_name} - Building known_version_id map.")
-        known_version_id_map = {
-            known_version.package_version: known_version.known_version_id
-            async for known_version in self.known_versions_repo.iter_known_versions(
-                package_name=package_name.package_name
-            )
-        }
+                logger.debug(f"{package_name} - Building known_version_id map.")
+                known_version_id_map = {
+                    known_version.package_version: known_version.known_version_id
+                    async for known_version in self.known_versions_repo.iter_known_versions(
+                        package_name=package_name.package_name, cursor=cursor,
+                    )
+                }
 
-        version_distributions: list[models.VersionDistribution] = [
-            models.VersionDistribution(
-                version_distribution_id=None,
-                known_version_id=known_version_id_map[version],
-                metadata_file_size=None,
-                processed=False,
-                python_version=distribution.python_version,
-                package_filename=distribution.package_filename,
-                package_type=distribution.package_type,
-                package_url=distribution.package_url,
-                requires_python=distribution.requires_python,
-                upload_time=distribution.upload_time,
-                yanked=distribution.yanked,
-            )
-            for version, distributions in package_vers_dists_result.versions.items()
-            for distribution in distributions
-        ]
+                version_distributions: list[models.VersionDistribution] = [
+                    models.VersionDistribution(
+                        version_distribution_id=None,
+                        known_version_id=known_version_id_map[version],
+                        metadata_file_size=None,
+                        processed=False,
+                        python_version=distribution.python_version,
+                        package_filename=distribution.package_filename,
+                        package_type=distribution.package_type,
+                        package_url=distribution.package_url,
+                        requires_python=distribution.requires_python,
+                        upload_time=distribution.upload_time,
+                        yanked=distribution.yanked,
+                    )
+                    for version, distributions in package_vers_dists_result.versions.items()
+                    for distribution in distributions
+                ]
 
-        logger.debug(f"{package_name} - Saving distribution information.")
-        result = await self.version_distributions_repo.insert_version_distributions(
-            version_distributions,
-            return_inserted=(self.rabbitmq_publish_service is not None)
-        )
+                logger.debug(f"{package_name} - Saving distribution information.")
+                result = await self.version_distributions_repo.insert_version_distributions(
+                    version_distributions,
+                    return_inserted=(self.rabbitmq_publish_service is not None),
+                    cursor=cursor,
+                )
 
-        if self.rabbitmq_publish_service is not None:
-            logger.debug(f"{package_name} - Publishing new version distributions to RabbitMQ.")
-            for vd in result:
-                self.rabbitmq_publish_service.publish_version_distribution(vd)
+                if self.rabbitmq_publish_service is not None and result:
+                    logger.debug(f"{package_name} - Publishing new version distributions to RabbitMQ.")
+                    self.rabbitmq_publish_service.publish_version_distributions(result)
 
-        logger.debug(f"{package_name} - Marking package checked.")
-        package_name.date_last_checked = now
-        await self.known_package_names_repo.update_known_package_names([package_name])
+                logger.debug(f"{package_name} - Marking package checked.")
+                package_name.date_last_checked = now
+                await self.known_package_names_repo.update_known_package_names([package_name], cursor=cursor)
+
+                await cursor.execute('commit;')
+
+            except Exception as ex:
+                logger.error("Error while processing package %s", package_name, exc_info=ex)
+                await cursor.execute('rollback;')
+                raise

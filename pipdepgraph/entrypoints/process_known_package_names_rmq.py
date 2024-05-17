@@ -43,56 +43,50 @@ async def main():
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
 
-        logger.info("Initializing RabbitMQ Connection")
-        with (
-            common.initialize_rabbitmq_connection() as rabbitmq_connection,
-            rabbitmq_connection.channel() as channel,
-        ):
-            channel: pika.adapters.blocking_connection.BlockingChannel
+        logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(common.initialize_rabbitmq_connection)
 
-            logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
-            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
+        logger.info("Initializing known_packages_processing_service.KnownPackageProcessingService")
+        kpps = known_packages_processing_service.KnownPackageProcessingService(
+            kpnr=kpnr,
+            kvr=kvr,
+            vdr=vdr,
+            pypi=pypi,
+            db_pool=db_pool,
+            rmq_pub=rmq_pub,
+        )
 
-            logger.info("Initializing known_packages_processing_service.KnownPackageProcessingService")
-            kpps = known_packages_processing_service.KnownPackageProcessingService(
-                kpnr=kpnr,
-                kvr=kvr,
-                vdr=vdr,
-                pypi=pypi,
-                rmq_pub=rmq_pub,
-            )
+        logger.info("Starting RabbitMQ consumer thread")
 
-            logger.info("Starting RabbitMQ consumer thread")
+        known_package_names_queue: queue.Queue[models.KnownPackageName | str] = queue.Queue()
+        ack_queue: queue.Queue[bool] = queue.Queue()
+        consume_from_rabbitmq_thread = threading.Thread(
+            target=consume_from_rabbitmq_target,
+            args=[known_package_names_queue, ack_queue],
+        )
 
-            known_package_names_queue: queue.Queue[models.KnownPackageName | str] = queue.Queue()
-            ack_queue: queue.Queue[bool] = queue.Queue()
-            consume_from_rabbitmq_thread = threading.Thread(
-                target=consume_from_rabbitmq_target,
-                args=[known_package_names_queue, ack_queue],
-            )
+        consume_from_rabbitmq_thread.start()
 
-            consume_from_rabbitmq_thread.start()
+        logger.info("Running.")
+        while True:
+            known_package_name = None
 
-            logger.info("Running.")
-            while True:
-                known_package_name = None
+            try:
+                known_package_name = known_package_names_queue.get(timeout=5.0)
+                await kpps.process_package_name(known_package_name, ignore_date_last_checked=True)
+                ack_queue.put(True)
 
-                try:
-                    known_package_name = known_package_names_queue.get(timeout=5.0)
-                    await kpps.process_package_name(known_package_name, ignore_date_last_checked=True)
-                    ack_queue.put(True)
+            except queue.Empty as ex:
+                if not consume_from_rabbitmq_thread.is_alive():
+                    logger.error("RabbitMQ consumer thread has died.")
+                    return
 
-                except queue.Empty as ex:
-                    if not consume_from_rabbitmq_thread.is_alive():
-                        logger.error("RabbitMQ consumer thread has died.")
-                        return
-
-                except Exception as ex:
-                    logger.error(
-                        f"Error while handling Known Package Name message: {known_package_name}",
-                        exc_info=ex,
-                    )
-                    ack_queue.put(False)
+            except Exception as ex:
+                logger.error(
+                    f"Error while handling Known Package Name message: {known_package_name}",
+                    exc_info=ex,
+                )
+                ack_queue.put(False)
 
 
 def consume_from_rabbitmq_target(

@@ -9,15 +9,16 @@ from psycopg.rows import dict_row
 from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
 
+
 class KnownVersionRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
     async def _insert_known_versions(
         self, known_versions: list[models.KnownVersion], cursor: AsyncCursor
-    ) -> dict[tuple[str, str], str]:
+    ) -> None:
         if not known_versions:
-            return {}
+            return None
 
         PARAMS_PER_INSERT = 4
         for known_versions in itertools.batched(
@@ -48,7 +49,7 @@ class KnownVersionRepository:
         self,
         known_versions: list[models.KnownVersion],
         cursor: AsyncCursor | None = None,
-    ) -> dict[tuple[str, str], str]:
+    ) -> None:
         if cursor:
             return await self._insert_known_versions(known_versions, cursor)
         else:
@@ -57,44 +58,68 @@ class KnownVersionRepository:
                 await cursor.execute("commit;")
                 return result
 
-    async def iter_known_versions(
-        self, package_name: str | None = None, package_version: str | None = None
+    async def _iter_known_versions(
+        self,
+        cursor: AsyncCursor,
+        package_name: str | None = None,
+        package_version: str | None = None,
     ) -> AsyncIterable[models.KnownVersion]:
-        async with self.db_pool.connection() as conn, conn.cursor(
-            row_factory=dict_row
-        ) as cursor:
-            query = textwrap.dedent(
-                f"""
-                    select
-                        kv.known_version_id,
-                        kv.package_name,
-                        kv.package_version,
-                        kv.package_release,
-                        kv.date_discovered
-                    from {table_names.KNOWN_VERSIONS} kv
-                """
-            )
+        query = textwrap.dedent(
+            f"""
+                select
+                    kv.known_version_id,
+                    kv.package_name,
+                    kv.package_version,
+                    kv.package_release,
+                    kv.date_discovered
+                from {table_names.KNOWN_VERSIONS} kv
+            """
+        )
 
-            params = []
+        params = []
 
-            if package_name is not None:
-                if not params:
-                    query += " where "
-                else:
-                    query += " and "
+        if package_name is not None:
+            if not params:
+                query += " where "
+            else:
+                query += " and "
 
-                query += " kv.package_name = %s "
-                params.append(package_name)
+            query += " kv.package_name = %s "
+            params.append(package_name)
 
-            if package_version is not None:
-                if not params:
-                    query += " where "
-                else:
-                    query += " and "
+        if package_version is not None:
+            if not params:
+                query += " where "
+            else:
+                query += " and "
 
-                query += " kv.package_version = %s "
-                params.append(package_version)
+            query += " kv.package_version = %s "
+            params.append(package_version)
 
-            await cursor.execute(query, params)
-            async for record in cursor:
-                yield models.KnownVersion(**record)
+        await cursor.execute(query, params)
+        async for record in cursor:
+            yield models.KnownVersion(**record)
+
+    async def iter_known_versions(
+        self,
+        package_name: str | None = None,
+        package_version: str | None = None,
+        cursor: AsyncCursor | None = None,
+    ) -> AsyncIterable[models.KnownVersion]:
+        if cursor:
+            async for record in self._iter_known_versions(
+                cursor=cursor,
+                package_name=package_name,
+                package_version=package_version,
+            ):
+                yield record
+        else:
+            async with self.db_pool.connection() as conn, conn.cursor(
+                row_factory=dict_row
+            ) as cursor:
+                async for record in self._iter_known_versions(
+                    cursor=cursor,
+                    package_name=package_name,
+                    package_version=package_version,
+                ):
+                    yield record

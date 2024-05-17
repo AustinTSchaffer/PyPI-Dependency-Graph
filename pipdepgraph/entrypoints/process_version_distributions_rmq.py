@@ -45,56 +45,50 @@ async def main():
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
 
-        logger.info("Initializing RabbitMQ Connection")
-        with (
-            common.initialize_rabbitmq_connection() as rabbitmq_connection,
-            rabbitmq_connection.channel() as channel,
-        ):
-            channel: pika.adapters.blocking_connection.BlockingChannel
+        logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(common.initialize_rabbitmq_connection)
 
-            logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
-            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
+        logger.info("Initializing version_distribution_processing_service.VersionDistributionProcessingService")
+        vdps = version_distribution_processing_service.VersionDistributionProcessingService(
+            kpnr=kpnr,
+            vdr=vdr,
+            ddr=ddr,
+            pypi=pypi,
+            db_pool=db_pool,
+            rmq_pub=rmq_pub,
+        )
 
-            logger.info("Initializing version_distribution_processing_service.VersionDistributionProcessingService")
-            vdps = version_distribution_processing_service.VersionDistributionProcessingService(
-                kpnr=kpnr,
-                vdr=vdr,
-                ddr=ddr,
-                pypi=pypi,
-                rmq_pub=rmq_pub,
-            )
+        logger.info("Starting RabbitMQ consumer thread")
 
-            logger.info("Starting RabbitMQ consumer thread")
+        version_distributions_queue: queue.Queue[models.VersionDistribution] = queue.Queue()
+        ack_queue: queue.Queue[bool] = queue.Queue()
+        consume_from_rabbitmq_thread = threading.Thread(
+            target=consume_from_rabbitmq_target,
+            args=[version_distributions_queue, ack_queue],
+        )
 
-            version_distributions_queue: queue.Queue[models.VersionDistribution] = queue.Queue()
-            ack_queue: queue.Queue[bool] = queue.Queue()
-            consume_from_rabbitmq_thread = threading.Thread(
-                target=consume_from_rabbitmq_target,
-                args=[version_distributions_queue, ack_queue],
-            )
+        consume_from_rabbitmq_thread.start()
 
-            consume_from_rabbitmq_thread.start()
+        logger.info("Running.")
+        while True:
+            version_distribution = None
 
-            logger.info("Running.")
-            while True:
-                version_distribution = None
+            try:
+                version_distribution = version_distributions_queue.get(timeout=5.0)
+                await vdps.process_version_distribution(version_distribution)
+                ack_queue.put(True)
 
-                try:
-                    version_distribution = version_distributions_queue.get(timeout=5.0)
-                    await vdps.process_version_distribution(version_distribution)
-                    ack_queue.put(True)
+            except queue.Empty as ex:
+                if not consume_from_rabbitmq_thread.is_alive():
+                    logger.error("RabbitMQ consumer thread has died.")
+                    return
 
-                except queue.Empty as ex:
-                    if not consume_from_rabbitmq_thread.is_alive():
-                        logger.error("RabbitMQ consumer thread has died.")
-                        return
-
-                except Exception as ex:
-                    logger.error(
-                        f"Error while handling Version Distribution message: {version_distribution}",
-                        exc_info=ex,
-                    )
-                    ack_queue.put(False)
+            except Exception as ex:
+                logger.error(
+                    f"Error while handling Version Distribution message: {version_distribution}",
+                    exc_info=ex,
+                )
+                ack_queue.put(False)
 
 
 def consume_from_rabbitmq_target(
