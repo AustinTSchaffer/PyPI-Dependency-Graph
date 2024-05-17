@@ -111,8 +111,8 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
 
-      UPL_LOAD_VERSION_DISTRIBUTIONS: false
-      UPL_LOAD_PACKAGE_NAMES: true
+      UPL_LOAD_VERSION_DISTRIBUTIONS: "false"
+      UPL_LOAD_PACKAGE_NAMES: "true"
     depends_on:
       - db
       - broker
