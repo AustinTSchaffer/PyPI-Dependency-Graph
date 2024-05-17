@@ -118,7 +118,7 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "unprocessed_record_loader.{{.Task.Slot}}."
-      UPL_LOAD_VERSION_DISTRIBUTIONS: "false"
+      UPL_LOAD_VERSION_DISTRIBUTIONS: "true"
       UPL_LOAD_PACKAGE_NAMES: "true"
     depends_on:
       - db
