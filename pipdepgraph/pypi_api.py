@@ -124,9 +124,9 @@ class PypiApi:
             logger.error(message)
             raise ValueError(message)
 
-        metadata_file_text = await metadata_file_resp.text()
+        metadata_file_content = await metadata_file_resp.content.read()
         package_metadata = packaging.metadata.Metadata.from_email(
-            metadata_file_text, validate=False
+            metadata_file_content, validate=False
         )
 
         return package_metadata, metadata_file_resp.content_length
