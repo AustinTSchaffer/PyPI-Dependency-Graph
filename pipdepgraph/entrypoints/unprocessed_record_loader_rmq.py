@@ -44,7 +44,7 @@ async def main():
             channel: pika.adapters.blocking_connection.BlockingChannel
             common.declare_rabbitmq_infrastructure(channel)
 
-            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
+            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
             # We're doing the downstream process first, since it takes way longer
             # to run compared to the upstream process.
@@ -52,12 +52,12 @@ async def main():
             logger.info("Loading all unprocessed version distributions into RabbitMQ")
             async for vd in vdr.iter_version_distributions(processed=False):
                 logger.debug("Loading unprocessed version distribution: %s", vd.version_distribution_id)
-                rmq_pub.publish_version_distribution(vd)
+                rmq_pub.publish_version_distribution(vd, channel=channel)
 
             logger.info("Loading all known package names into RabbitMQ")
             async for kpn in kpnr.iter_known_package_names():
                 logger.debug("Loading KnownPackageName: %s", kpn.package_name)
-                rmq_pub.publish_known_package_name(kpn)
+                rmq_pub.publish_known_package_name(kpn, channel=channel)
 
 if __name__ == "__main__":
     common.initialize_logger()
