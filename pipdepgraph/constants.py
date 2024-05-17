@@ -35,5 +35,5 @@ RABBITMQ_VD_SUB_PREFETCH = int(os.getenv("RABBITMQ_VD_SUB_PREFETCH", 100))
 
 RABBITMQ_CTAG_PREFIX = os.getenv("RABBITMQ_CTAG_PREFIX", None)
 
-UPL_LOAD_PACKAGE_NAMES = bool(os.getenv("UPL_LOAD_PACKAGE_NAMES", "true"))
-UPL_LOAD_VERSION_DISTRIBUTIONS = bool(os.getenv("UPL_LOAD_VERSION_DISTRIBUTIONS", "true"))
+UPL_LOAD_PACKAGE_NAMES = bool(os.getenv("UPL_LOAD_PACKAGE_NAMES", "true").strip().lower() == "true")
+UPL_LOAD_VERSION_DISTRIBUTIONS = bool(os.getenv("UPL_LOAD_VERSION_DISTRIBUTIONS", "true").strip().lower() == "true")

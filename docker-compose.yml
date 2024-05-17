@@ -63,7 +63,7 @@ services:
   version_distribution_processor:
     restart: always
     deploy:
-      replicas: 0
+      replicas: 1
     build:
       context: .
       dockerfile: app.Dockerfile
@@ -90,7 +90,7 @@ services:
   unprocessed_record_loader:
     restart: on-failure
     deploy:
-      replicas: 0
+      replicas: 1
     build:
       context: .
       dockerfile: app.Dockerfile
@@ -110,6 +110,9 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
+
+      UPL_LOAD_VERSION_DISTRIBUTIONS: false
+      UPL_LOAD_PACKAGE_NAMES: true
     depends_on:
       - db
       - broker
