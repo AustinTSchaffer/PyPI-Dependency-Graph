@@ -87,6 +87,7 @@ async def main():
                     exc_info=ex,
                 )
                 ack_queue.put(False)
+                raise
 
 
 def consume_from_rabbitmq_target(
@@ -127,6 +128,7 @@ def consume_from_rabbitmq_target(
                     ch.basic_ack(basic_deliver.delivery_tag)
                 else:
                     ch.basic_nack(basic_deliver.delivery_tag)
+                    ch.close()
 
             except Exception as ex:
                 logger.error(
@@ -134,6 +136,8 @@ def consume_from_rabbitmq_target(
                     exc_info=ex,
                 )
                 ch.basic_nack(basic_deliver.delivery_tag)
+                ch.close()
+                raise
 
         consumer_tag = None
         if constants.RABBITMQ_CTAG_PREFIX:
