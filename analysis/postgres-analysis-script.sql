@@ -1,12 +1,20 @@
+--
+-- Current table sizes with estimate counts
+--
 select
   table_name,
   reltuples as row_count_estimate,
   pg_size_pretty(pg_total_relation_size('pypi_packages.' || table_name)) as size_pretty,
-  pg_total_relation_size('pypi_packages.' || table_name) as size_bytes
+  pg_total_relation_size('pypi_packages.' || table_name) as size_bytes,
+  pg_size_pretty(sum(pg_total_relation_size('pypi_packages.' || table_name)) over()) as total_size_pretty,
+  sum(pg_total_relation_size('pypi_packages.' || table_name)) over() total_size  
 from information_schema.tables
 left join pg_class on relname = table_name
 where table_schema = 'pypi_packages'
 order by row_count_estimate;
+
+
+select * from known_package_names kpn order by date_discovered asc;
 
 --
 -- package types with no dependencies.
@@ -25,7 +33,7 @@ group by package_type;
 -- Packages without any versions.
 --
 select count(*) over(), * from known_package_names kpn
-left join known_versions kv on lower(kv.package_name) = lower(kpn.package_name)
+left join known_versions kv on kv.package_name = kpn.package_name
 where kv.known_version_id is null;
 
 -- delete from known_package_names kpn where
@@ -44,23 +52,15 @@ where pypi_packages.canonicalize_package_name(kpn.package_name) != kpn.package_n
 --
 -- Percentage of known_versions with processed = true
 --
-select count(*) from pypi_packages.version_distributions vd where vd.processed = false
-
 select (
 	100.0 *
 	(select count(vd.processed)::float from pypi_packages.version_distributions vd where vd.processed = true) /
 	(select count(vd.processed)::float from pypi_packages.version_distributions vd)
 ) as "percentage complete";
 
-select * from pypi_packages.known_package_names kpn order by date_discovered; 
-select * from pypi_packages.direct_dependencies dd;
+select count(*) from pypi_packages.version_distributions vd where vd.processed = false;
+select * from pypi_packages.known_versions where package_release = '{}';
 
-select kv.*, vd.*
-from pypi_packages.known_versions kv
-join pypi_packages.version_distributions vd on kv.known_version_id = vd.known_version_id
-where vd.version_distribution_id = '781ad863-5c3f-453c-bf46-874b130d6c0f';
-
-select * from pypi_packages.known_versions kv where not processed;
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
@@ -99,15 +99,15 @@ commit;
 rollback;
 
 --
--- pycrdt has a ton of distributions.
+-- Deps of boto3 version 1.2.3
 --
-select
-	count(*) over(),
-	kv.*, vd.*
+select kv.*, vd.*, dd.*
 from known_versions kv
-join version_distributions vd on kv.known_version_id = vd.known_version_id
-where package_name ilike 'pycrdt'
-order by package_release desc;
+left join version_distributions vd on vd.known_version_id = kv.known_version_id
+left join direct_dependencies dd on dd.version_distribution_id = vd.version_distribution_id
+where
+	kv.package_name = 'notebook' and vd.package_type = 'bdist_wheel'
+;
 
 --
 -- Self-referential package dependencies
@@ -137,44 +137,44 @@ select * from known_package_names kpn order by date_discovered;
 select * from known_versions kv;
 
 -- Dep tree for boto3 (WIP)
-with
-latest_versions as (
-	select subq.* from (
-		select
-			*,
-			rank() OVER (PARTITION BY package_name ORDER BY upload_time DESC) as r
-		from known_versions kv
-	) subq
-	where subq.r = 1
-),
-boto3version as (
-	select * from latest_versions kv
-	where kv.package_name = 'boto3'
-)
-select
-	'boto3' as package_name,
-	dd_l1.dependency_name dep_name_l1 ,
-	dd_l2.dependency_name dep_name_l2 ,
-	dd_l3.dependency_name dep_name_l3 ,
-	dd_l4.dependency_name dep_name_l4 ,
-	dd_l5.dependency_name dep_name_l5 ,
-	dd_l6.dependency_name dep_name_l6 --,
-	--dd_l7.dependency_name dep_name_l7
-from direct_dependencies dd_l1
-join boto3version b3v on b3v.known_version_id = dd_l1.known_version_id
-left join latest_versions lv_l1 on lv_l1.package_name = dd_l1.dependency_name
-left join direct_dependencies dd_l2 on lv_l1.known_version_id = dd_l2.known_version_id
-left join latest_versions lv_l2 on lv_l2.package_name = dd_l2.dependency_name
-left join direct_dependencies dd_l3 on lv_l2.known_version_id = dd_l3.known_version_id
-left join latest_versions lv_l3 on lv_l3.package_name = dd_l3.dependency_name
-left join direct_dependencies dd_l4 on lv_l3.known_version_id = dd_l4.known_version_id
-left join latest_versions lv_l4 on lv_l4.package_name = dd_l4.dependency_name
-left join direct_dependencies dd_l5 on lv_l4.known_version_id = dd_l5.known_version_id
-left join latest_versions lv_l5 on lv_l5.package_name = dd_l5.dependency_name
-left join direct_dependencies dd_l6 on lv_l5.known_version_id = dd_l6.known_version_id
---left join latest_versions lv_l6 on lv_l6.package_name = dd_l6.dependency_name
---left join direct_dependencies dd_l7 on lv_l6.known_version_id = dd_l7.known_version_id
-order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_name_l5, dep_name_l6 --, dep_name_l7
+--with
+--latest_versions as (
+--	select subq.* from (
+--		select
+--			*,
+--			rank() OVER (PARTITION BY package_name ORDER BY upload_time DESC) as r
+--		from known_versions kv
+--	) subq
+--	where subq.r = 1
+--),
+--boto3version as (
+--	select * from latest_versions kv
+--	where kv.package_name = 'boto3'
+--)
+--select
+--	'boto3' as package_name,
+--	dd_l1.dependency_name dep_name_l1 ,
+--	dd_l2.dependency_name dep_name_l2 ,
+--	dd_l3.dependency_name dep_name_l3 ,
+--	dd_l4.dependency_name dep_name_l4 ,
+--	dd_l5.dependency_name dep_name_l5 ,
+--	dd_l6.dependency_name dep_name_l6 --,
+--	--dd_l7.dependency_name dep_name_l7
+--from direct_dependencies dd_l1
+--join boto3version b3v on b3v.known_version_id = dd_l1.known_version_id
+--left join latest_versions lv_l1 on lv_l1.package_name = dd_l1.dependency_name
+--left join direct_dependencies dd_l2 on lv_l1.known_version_id = dd_l2.known_version_id
+--left join latest_versions lv_l2 on lv_l2.package_name = dd_l2.dependency_name
+--left join direct_dependencies dd_l3 on lv_l2.known_version_id = dd_l3.known_version_id
+--left join latest_versions lv_l3 on lv_l3.package_name = dd_l3.dependency_name
+--left join direct_dependencies dd_l4 on lv_l3.known_version_id = dd_l4.known_version_id
+--left join latest_versions lv_l4 on lv_l4.package_name = dd_l4.dependency_name
+--left join direct_dependencies dd_l5 on lv_l4.known_version_id = dd_l5.known_version_id
+--left join latest_versions lv_l5 on lv_l5.package_name = dd_l5.dependency_name
+--left join direct_dependencies dd_l6 on lv_l5.known_version_id = dd_l6.known_version_id
+----left join latest_versions lv_l6 on lv_l6.package_name = dd_l6.dependency_name
+----left join direct_dependencies dd_l7 on lv_l6.known_version_id = dd_l7.known_version_id
+--order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_name_l5, dep_name_l6 --, dep_name_l7
 
 -- DANGER
 -- delete from known_package_names where package_name != 'boto3';
@@ -203,3 +203,32 @@ order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_n
     JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid
    WHERE NOT blocked_locks.granted;
 
+  
+--
+-- Check for dupes
+--
+select kpn.*, kv.* from known_package_names kpn
+left join known_versions kv on kv.package_name = kpn.package_name
+where kv.known_version_id is null;
+  
+select
+    package_name,
+    date_discovered,
+    date_last_checked
+from (
+    select
+        *,
+        rank() over(partition by package_name order by date_discovered asc) rank_
+    from pypi_packages.known_package_names kpn
+    where package_name in (
+        select
+            package_name
+        from pypi_packages.known_package_names kpn
+        group by package_name
+        having count(*) > 1
+    )
+) subq
+where subq.rank_ > 1;
+
+select count(*) from direct_dependencies dd;
+-- truncate table pypi_packages.version_distributions cascade;
