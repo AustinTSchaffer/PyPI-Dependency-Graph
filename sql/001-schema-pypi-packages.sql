@@ -17,7 +17,7 @@ create table pypi_packages.known_versions (
     known_version_id uuid not null default gen_random_uuid() primary key,
     package_name text not null,
     package_version text not null,
-    package_release integer[] not null,
+    package_release bigint[] not null,
     date_discovered timestamp not null default now()
 );
 
