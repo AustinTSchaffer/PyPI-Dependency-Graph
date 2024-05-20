@@ -54,7 +54,7 @@ class KnownPackageNameRepository:
                 query += ",".join("(%s)" for _ in range(len(package_names)))
                 params = package_names
             else:
-                raise ValueError(f"invalid type for package_names: {v}")
+                raise ValueError(f"invalid type for package_names: {package_names[0]}")
 
             query += " on conflict do nothing "
             if return_inserted:
