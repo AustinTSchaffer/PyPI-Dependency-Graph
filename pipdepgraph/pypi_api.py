@@ -1,7 +1,8 @@
 import logging
 import datetime
 import dataclasses
-from typing import Optional
+from typing import Optional, AsyncIterable
+import re
 
 import aiohttp
 import packaging.utils
@@ -11,6 +12,7 @@ import packaging.metadata
 from pipdepgraph import models
 
 PYPI_HOST = "https://pypi.org"
+PACKAGE_NAME_REGEX = re.compile(r'/simple/(?P<package_name>[a-z0-9\-_\.]+)', re.I)
 
 logger = logging.getLogger(__name__)
 
@@ -131,16 +133,18 @@ class PypiApi:
 
         return package_metadata, metadata_file_resp.content_length
 
+    async def iter_all_package_names(self) -> AsyncIterable[str]:
+        """
+        Async iterable over all package names from PyPI's "simple" index.
+        The package names are assumed to be canonicalized and in
+        alphabetical order, though neither is guaranteed.
+        """
 
-# TODO: Persist this somehow.
-# Supports "in" operator. `'3.5.2' in python_version_specs`
-# python_version_specs = (
-#     packaging.specifiers.SpecifierSet(distribution['requires_python'])
-#     if distribution['requires_python'] is not None else
-#     None
-# )
+        response = await self.session.get(f"{PYPI_HOST}/simple/")
+        if not response.ok:
+            raise ValueError("Error getting list of packages from PyPI", response)
 
-# TODO: Use this for persisting platform info.
-# _, _, _, version_tag_info = packaging.utils.parse_wheel_filename(distribution['filename'])
-#
-# Doesn't support .egg files. Need to figure that out.
+        async for line in response.content:
+            if re_result := PACKAGE_NAME_REGEX.search(line.decode("utf-8")):
+                package_name = re_result["package_name"]
+                yield package_name
