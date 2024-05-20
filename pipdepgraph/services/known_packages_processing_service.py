@@ -4,7 +4,7 @@ import logging
 import packaging
 import packaging.version
 
-from pipdepgraph import models, pypi_api
+from pipdepgraph import models, pypi_api, constants
 from pipdepgraph.repositories import (
     known_package_name_repository,
     known_version_repository,
@@ -143,10 +143,14 @@ class KnownPackageProcessingService:
         for known_version in known_versions:
             try:
                 parsed_version = packaging.version.parse(known_version.package_version)
+                for release_term in parsed_version.release:
+                    if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
+                        raise ValueError(f"{package_name.package_name} - Version {known_version.package_version} contains a term larger than {constants.PACKAGE_RELEASE_TERM_MAX_SIZE}")
+
                 known_version.package_release = parsed_version.release
             except Exception as ex:
                 logger.error(
-                    f"Error parsing version {known_version.package_version} of package {package_name.package_name}.",
+                    f"{package_name.package_name} - Error parsing version {known_version.package_version}.",
                     exc_info=ex,
                 )
 

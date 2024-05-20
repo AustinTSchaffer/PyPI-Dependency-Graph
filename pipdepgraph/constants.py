@@ -37,3 +37,5 @@ RABBITMQ_CTAG_PREFIX = os.getenv("RABBITMQ_CTAG_PREFIX", None)
 
 UPL_LOAD_PACKAGE_NAMES = bool(os.getenv("UPL_LOAD_PACKAGE_NAMES", "true").strip().lower() == "true")
 UPL_LOAD_VERSION_DISTRIBUTIONS = bool(os.getenv("UPL_LOAD_VERSION_DISTRIBUTIONS", "true").strip().lower() == "true")
+
+PACKAGE_RELEASE_TERM_MAX_SIZE = 9_223_372_036_854_775_807 # Postgres bigint max size
