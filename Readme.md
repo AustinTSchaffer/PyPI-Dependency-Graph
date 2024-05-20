@@ -13,11 +13,13 @@ The reason why I believe these can be improved is because there's no reverse-dep
 
 ## Screenshots
 
-![](./images/tmux-screenshot.png)
-
 ![](./images/rabbitmq-screenshot.png)
 
 ![](./images/postgres-screenshot.png)
+
+![](./images/docker-swarm-visualiser-screenshot.png)
+
+![](./images/tmux-screenshot.png)
 
 ## TODO
 
