@@ -45,6 +45,15 @@ class KnownVersion:
     package_release: tuple[int, ...]
     date_discovered: Optional[datetime.datetime]
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "KnownVersion":
+        return cls(
+            known_version_id=data.get("known_version_id", None),
+            package_name=data.get("package_name", None),
+            package_version=data.get("package_version", None),
+            package_release=data.get("package_release", None),
+            date_discovered=data.get("date_discovered", None),
+        )
 
 @dataclasses.dataclass
 class VersionDistribution:
@@ -109,3 +118,13 @@ class DirectDependency:
     dependency_name: str
     dependency_extras: Optional[str]
     version_constraint: Optional[str]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "DirectDependency":
+        return cls(
+            version_distribution_id=data.get("version_distribution_id", None),
+            extras=data.get("extras", None),
+            dependency_name=data.get("dependency_name", None),
+            dependency_extras=data.get("dependency_extras", None),
+            version_constraint=data.get("version_constraint", None),
+        )
