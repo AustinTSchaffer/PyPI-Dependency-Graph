@@ -199,5 +199,5 @@ class VersionDistributionRepository:
                 params.append(processed)
 
             await cursor.execute(query, params)
-            async for result in cursor:
-                yield models.VersionDistribution(**result)
+            async for record in cursor:
+                yield models.VersionDistribution.from_dict(record)

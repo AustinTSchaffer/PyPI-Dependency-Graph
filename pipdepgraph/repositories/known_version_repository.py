@@ -98,7 +98,7 @@ class KnownVersionRepository:
 
         await cursor.execute(query, params)
         async for record in cursor:
-            yield models.KnownVersion(**record)
+            yield models.KnownVersion.from_dict(record)
 
     async def iter_known_versions(
         self,
