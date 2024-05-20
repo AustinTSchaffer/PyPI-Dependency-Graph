@@ -7,11 +7,13 @@ select
   pg_size_pretty(pg_total_relation_size('pypi_packages.' || table_name)) as size_pretty,
   pg_total_relation_size('pypi_packages.' || table_name) as size_bytes,
   pg_size_pretty(sum(pg_total_relation_size('pypi_packages.' || table_name)) over()) as total_size_pretty,
-  sum(pg_total_relation_size('pypi_packages.' || table_name)) over() total_size  
+  sum(pg_total_relation_size('pypi_packages.' || table_name)) over() total_size
 from information_schema.tables
 left join pg_class on relname = table_name
 where table_schema = 'pypi_packages'
 order by row_count_estimate;
+
+select count(*) over(), *, regexp_match(kpn.package_name, '^[hijklmno].+') from known_package_names kpn where regexp_match(kpn.package_name, '^[hijklmno].+') is not null and date_last_checked is null;
 
 select * from known_package_names kpn order by date_discovered asc;
 select count(*) from direct_dependencies dd;
@@ -66,7 +68,16 @@ select (
 ) as "percentage complete";
 
 select count(*) from pypi_packages.version_distributions vd where vd.processed = false;
+
+--
+-- Packages with non-compliant version strings
+--
 select * from pypi_packages.known_versions where package_release = '{}';
+
+select package_name, count(*) from pypi_packages.known_versions
+where package_release = '{}'
+group by package_name
+order by count(*) desc;
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
@@ -194,7 +205,7 @@ select * from known_versions kv;
          blocking_activity.query   AS current_statement_in_blocking_process
    FROM  pg_catalog.pg_locks         blocked_locks
     JOIN pg_catalog.pg_stat_activity blocked_activity  ON blocked_activity.pid = blocked_locks.pid
-    JOIN pg_catalog.pg_locks         blocking_locks 
+    JOIN pg_catalog.pg_locks         blocking_locks
         ON blocking_locks.locktype = blocked_locks.locktype
         AND blocking_locks.database IS NOT DISTINCT FROM blocked_locks.database
         AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
@@ -209,14 +220,14 @@ select * from known_versions kv;
     JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid
    WHERE NOT blocked_locks.granted;
 
-  
+
 --
 -- Check for dupes
 --
 select kpn.*, kv.* from known_package_names kpn
 left join known_versions kv on kv.package_name = kpn.package_name
 where kv.known_version_id is null;
-  
+
 select
     package_name,
     date_discovered,

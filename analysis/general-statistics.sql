@@ -7,7 +7,7 @@ select
   pg_size_pretty(pg_total_relation_size('pypi_packages.' || table_name)) as size_pretty,
   pg_total_relation_size('pypi_packages.' || table_name) as size_bytes,
   pg_size_pretty(sum(pg_total_relation_size('pypi_packages.' || table_name)) over()) as total_size_pretty,
-  sum(pg_total_relation_size('pypi_packages.' || table_name)) over() total_size  
+  sum(pg_total_relation_size('pypi_packages.' || table_name)) over() total_size
 from information_schema.tables
 left join pg_class on relname = table_name
 where table_schema = 'pypi_packages'
@@ -63,5 +63,5 @@ with num_dists_per_version as (
 		vd.known_version_id,
 		count(*) count_
 	from version_distributions vd
-	group by vd.known_version_id 
+	group by vd.known_version_id
 ) select avg(count_) from num_dists_per_version;
