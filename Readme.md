@@ -53,6 +53,20 @@ Below is a screenshot of a terminal showing multiple tmux panes, most of them ru
   - Architecture diagram
 - Unit tests
 
+```py
+# TODO: Persist this somehow.
+# Supports "in" operator. `'3.5.2' in python_version_specs`
+python_version_specs = (
+    packaging.specifiers.SpecifierSet(distribution['requires_python'])
+    if distribution['requires_python'] is not None else
+    None
+)
+
+# TODO: Use this for persisting platform info.
+_, _, _, version_tag_info = packaging.utils.parse_wheel_filename(distribution['filename'])
+# Doesn't support .egg files. Need to figure that out.
+```
+
 ## Estimate on Database Size
 
 With the current schema, at this present moment. Here's the DB stats.
@@ -124,24 +138,33 @@ where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
 |------------|---------------|--------------|---------------|-----------------------|------|---------------------|---------------|--------------------------------------------------------------------------|------------------|
 |ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "all"       |ipython        |kernel,nbconvert,black,notebook,parallel,doc,nbformat,qtconsole,matplotlib|                  |
 |ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
-|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "doc"       |ipython        |test                                                                      |                  |
-|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "test-extra"|ipython        |test                                                                      |                  |
-|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "all"       |ipython        |kernel,nbconvert,black,notebook,parallel,doc,nbformat,qtconsole,matplotlib|                  |
-|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
-|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "doc"       |ipython        |test                                                                      |                  |
-|ipython     |8.23.0         |py3           |>=3.10         |2024-03-31 13:01:52.882|false |extra == "test-extra"|ipython        |test                                                                      |                  |
-|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "all"       |ipython        |nbconvert,black,notebook,terminal,parallel,doc,nbformat,qtconsole,kernel  |                  |
-|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
-|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "doc"       |ipython        |test                                                                      |                  |
-|ipython     |8.22.2         |py3           |>=3.10         |2024-03-04 10:32:50.392|false |extra == "test-extra"|ipython        |test                                                                      |                  |
-|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "all"       |ipython        |nbconvert,black,notebook,terminal,parallel,doc,nbformat,qtconsole,kernel  |                  |
-|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "all"       |ipython        |test_extra,test                                                           |                  |
-|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "doc"       |ipython        |test                                                                      |                  |
-|ipython     |8.22.1         |py3           |>=3.10         |2024-02-22 14:34:56.071|false |extra == "test-extra"|ipython        |test                                                                      |                  |
-|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "all"       |ipython        |nbconvert,black,notebook,terminal,parallel,doc,nbformat,qtconsole,kernel  |                  |
-|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "all"       |ipython        |test_extra,test                                                           |                  |
-|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "doc"       |ipython        |test                                                                      |                  |
-|ipython     |8.22.0         |py3           |>=3.10         |2024-02-22 10:12:45.956|true  |extra == "test-extra"|ipython        |test                                                                      |                  |
+|ipython     |8.24.0         |py3           |>=3.10         |2024-04-26 09:10:25.853|false |extra == "doc"       |
+
+## See Also
+
+- Docs on Pip's solver
+  - https://pip.pypa.io/en/stable/topics/dependency-resolution/
+  - https://pip.pypa.io/en/stable/topics/more-dependency-resolution/
+  - https://pypi.org/project/resolvelib/
+- Libraries.io
+  - Probably contains everything. Site is incredibly slow.
+- Wheelodex
+  - Has reverse dependency information. Doesn't have all versions of all packages.
+  - https://www.wheelodex.org/
+  - https://github.com/wheelodex/wheelodex
+- Most downloaded packages
+  - https://pypistats.org/
+  - https://github.com/crflynn/pypistats.org
+  - https://hugovk.github.io/top-pypi-packages/
+  - https://wiki.python.org/moin/PackagePopularity
+- https://pypi.org/stats/
+  - Information about the size of PyPI's assets.
+- https://pythonwheels.com/
+  - "Wheels are the new standard of Python distribution and are intended to replace eggs."
+  - https://www.python.org/dev/peps/pep-0427
+- https://github.com/sethmlarson/pypi-data
+  - Only has dependency information for the latest version of each package.
+
 
 ## Docker Stack
 
