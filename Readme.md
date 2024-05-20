@@ -13,26 +13,45 @@ The reason why I believe these can be improved is because there's no reverse-dep
 
 ## Screenshots
 
-![](./images/rabbitmq-screenshot.png)
+### RabbitMQ
+
+Below is a screenshot from RabbitMQ showing 1.2M messages being processed, mostly version distribution records.
+
+![](./images/rabbitmq-screenshot-1.png)
+
+Below is a screenshot from RabbitMQ showing 500k messages being processed from the `version_distributions` queue. This screenshot was taken while the cluster was processing all of the PyPI packages which begin with the letter "A".
+
+![](./images/rabbitmq-screenshot-2.png)
+
+### Postgres
+
+Below is a screenshot from Postgres showing a breakdown of each table's estimated row count and total size. In this screengrab, which was taken while the system was beginning to process all of the PyPI packages that start with the letter "A", the database is about 5.5GB in size.
 
 ![](./images/postgres-screenshot.png)
 
+### Docker Swarm Visualizer
+
+Below is a screenshot from Docker Swarm Visualizer showing the roles of each node in my Pi cluster, plus some of the applications which are running on it.
+
 ![](./images/docker-swarm-visualiser-screenshot.png)
+
+### Tmux
+
+Below is a screenshot of a terminal showing multiple tmux panes, most of them running htop on all of the worker nodes in the cluster, plus a pane listing the running service replicas.
 
 ![](./images/tmux-screenshot.png)
 
 ## TODO
 
-- Are the postgres indexes sufficient? Over-engineered?
 - Currently not parsing platform compatibility from filenames.
-  - Have a process for parsing that info from .gz filenames.
-  - Issue being related to the parsing script not handling `.egg` files.
-- Convert the version constraint information in `direct_deps` to Postgres ranges
+  - Have a process for parsing that info from `.gz` and `.whl` filenames.
+  - The file that those methods live in doesn't process `.egg` files.
 - Need to do some analysis to see how much version information changes between different "version metadata"
 - Sometimes the unprocessed record loader becomes a zombie. Also pretty sure that at the DB's current size, running the loader causes all of the app nodes to crash.
 - Tons of documentation
-- Architecture diagram
-- Nothing older than 5 years please.
+  - Method-level and class-level docstrings
+  - Architecture diagram
+- Unit tests
 
 ## Estimate on Database Size
 
