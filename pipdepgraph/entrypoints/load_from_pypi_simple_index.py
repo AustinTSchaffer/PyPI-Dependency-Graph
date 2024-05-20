@@ -37,7 +37,7 @@ async def main():
 
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
-            prefix_regex = r"b"
+            prefix_regex = r"[defg]"
 
             logger.info(fr"Fetching list of packages from PyPI with prefix: r'{prefix_regex}'")
             result = await client.get("https://pypi.org/simple/")
@@ -45,7 +45,7 @@ async def main():
                 raise ValueError(result)
 
             processing_prefix = False
-            prefix_regex = re.compile(fr"/simple/({prefix_regex}[^/]+)/")
+            prefix_regex = re.compile(fr"/simple/({prefix_regex}[^/]*)/")
             package_names = []
             async for line in result.content:
                 try:
