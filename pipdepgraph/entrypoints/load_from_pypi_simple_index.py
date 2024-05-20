@@ -37,13 +37,14 @@ async def main():
 
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
-            logger.info("Fetching list of packages from PyPI")
+            prefix_regex = r"b"
+
+            logger.info(fr"Fetching list of packages from PyPI with prefix: r'{prefix_regex}'")
             result = await client.get("https://pypi.org/simple/")
             if not result.ok:
                 raise ValueError(result)
 
             processing_prefix = False
-            prefix_regex = r"a"
             prefix_regex = re.compile(fr"/simple/({prefix_regex}[^/]+)/")
             package_names = []
             async for line in result.content:
@@ -57,8 +58,10 @@ async def main():
                     logger.error(f"Error processing line from simple index: {line}", exc_info=ex)
                     continue
 
+            logger.info(f"Inserting {len(package_names)} package names into Postgres")
             await kpnr.insert_known_package_names(package_names)
 
+            logger.info(f"Publishing {len(package_names)} package names to RabbitMQ")
             for package_name in package_names:
                 rmq_pub.publish_known_package_name(package_name, channel=channel)
 
