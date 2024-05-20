@@ -46,7 +46,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 4
+      replicas: 12
       placement:
         constraints:
           - node.labels.role==app
@@ -72,7 +72,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 16
+      replicas: 26
       placement:
         constraints:
           - node.labels.role==app
@@ -119,7 +119,7 @@ services:
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "unprocessed_record_loader.{{.Task.Slot}}."
       UPL_LOAD_VERSION_DISTRIBUTIONS: "true"
-      UPL_LOAD_PACKAGE_NAMES: "true"
+      UPL_LOAD_PACKAGE_NAMES: "false"
     depends_on:
       - db
       - broker
