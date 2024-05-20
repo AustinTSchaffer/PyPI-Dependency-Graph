@@ -25,6 +25,7 @@ class KnownPackageNameRepository:
         if not package_names:
             return []
 
+        output = []
         MAX_PARAMS_PER_INSERT = 3
 
         for package_names in itertools.batched(
@@ -58,11 +59,12 @@ class KnownPackageNameRepository:
                 query += " returning package_name, date_discovered, date_last_checked "
 
             await cursor.execute(query, params)
+
             if return_inserted:
                 rows = await cursor.fetchall()
-                return [models.KnownPackageName(**row) for row in rows]
-            else:
-                return []
+                output.extend(map(models.KnownPackageName.from_dict, rows))
+
+        return output
 
     async def insert_known_package_names(
         self,
@@ -171,7 +173,7 @@ class KnownPackageNameRepository:
 
             await cursor.execute(query, params)
             async for record in cursor:
-                yield models.KnownPackageName(**record)
+                yield models.KnownPackageName.from_dict(record)
 
     async def _propagate_dependency_names(self, cursor: AsyncCursor):
         query = f"""
