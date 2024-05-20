@@ -13,8 +13,8 @@ left join pg_class on relname = table_name
 where table_schema = 'pypi_packages'
 order by row_count_estimate;
 
-
 select * from known_package_names kpn order by date_discovered asc;
+select count(*) from direct_dependencies dd;
 
 --
 -- package types with no dependencies.
@@ -23,6 +23,13 @@ select * from known_package_names kpn order by date_discovered asc;
 select distinct package_type
 from version_distributions vd
 where package_type != 'bdist_wheel';
+
+select
+	package_type,
+	count(*)
+from version_distributions
+group by package_type
+order by count(*) desc;
 
 select package_type, count(*)
 from version_distributions vd
@@ -60,7 +67,6 @@ select (
 
 select count(*) from pypi_packages.version_distributions vd where vd.processed = false;
 select * from pypi_packages.known_versions where package_release = '{}';
-
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
