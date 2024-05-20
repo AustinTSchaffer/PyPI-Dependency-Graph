@@ -5,7 +5,7 @@ import re
 import pika
 import pika.adapters.blocking_connection
 
-from pipdepgraph import pypi_api
+from pipdepgraph import pypi_api, constants
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
@@ -39,10 +39,10 @@ async def main():
 
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
-            prefix_regex = r"^"
+            prefix_regex = constants.POPULAR_PACKAGE_LOADER_PREFIX_REGEX
 
             logger.info(
-                rf"Fetching list of packages from PyPI with prefix: r'{prefix_regex}'"
+                rf"Fetching list of packages from PyPI with prefix: r'{prefix_regex.pattern}'"
             )
 
             prefix_regex = re.compile(prefix_regex)
@@ -57,7 +57,13 @@ async def main():
                     break
 
             logger.info(f"Inserting {len(package_names)} package names into Postgres")
-            await kpnr.insert_known_package_names(package_names)
+            packages_inserted = await kpnr.insert_known_package_names(
+                package_names,
+                return_inserted=constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED,
+            )
+
+            if constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED:
+                logger.info(f"{len(packages_inserted)} new packages found.")
 
             logger.info(f"Publishing {len(package_names)} package names to RabbitMQ")
             for package_name in package_names:

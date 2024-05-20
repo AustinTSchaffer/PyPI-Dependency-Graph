@@ -1,4 +1,5 @@
 import os
+import re
 
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
@@ -43,3 +44,6 @@ UPL_LOAD_VERSION_DISTRIBUTIONS = bool(
 )
 
 PACKAGE_RELEASE_TERM_MAX_SIZE = 9_223_372_036_854_775_807  # Postgres bigint max size
+
+POPULAR_PACKAGE_LOADER_COUNT_INSERTED = os.getenv("TOP_8000_LOADER_COUNT_INSERTED", "true").strip().lower() == "true"
+POPULAR_PACKAGE_LOADER_PREFIX_REGEX = re.compile(os.getenv("TOP_8000_LOADER_COUNT_INSERTED", "^"))
