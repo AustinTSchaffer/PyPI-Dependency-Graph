@@ -27,7 +27,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger('pipdepgraph.entrypoints.process_version_distributions_rmq')
+logger = logging.getLogger("pipdepgraph.entrypoints.process_version_distributions_rmq")
 
 
 async def main():
@@ -46,9 +46,13 @@ async def main():
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
-        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(common.initialize_rabbitmq_connection)
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(
+            common.initialize_rabbitmq_connection
+        )
 
-        logger.info("Initializing version_distribution_processing_service.VersionDistributionProcessingService")
+        logger.info(
+            "Initializing version_distribution_processing_service.VersionDistributionProcessingService"
+        )
         vdps = version_distribution_processing_service.VersionDistributionProcessingService(
             kpnr=kpnr,
             vdr=vdr,
@@ -60,7 +64,9 @@ async def main():
 
         logger.info("Starting RabbitMQ consumer thread")
 
-        version_distributions_queue: queue.Queue[models.VersionDistribution] = queue.Queue()
+        version_distributions_queue: queue.Queue[models.VersionDistribution] = (
+            queue.Queue()
+        )
         ack_queue: queue.Queue[bool] = queue.Queue()
         consume_from_rabbitmq_thread = threading.Thread(
             target=consume_from_rabbitmq_target,

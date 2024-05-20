@@ -17,12 +17,19 @@ class RabbitMqPublishService:
     def publish_known_package_name(
         self, kpn: models.KnownPackageName | str, channel: pika.channel.Channel = None
     ):
-        package_name = kpn.package_name if isinstance(kpn, models.KnownPackageName) else kpn
+        package_name = (
+            kpn.package_name if isinstance(kpn, models.KnownPackageName) else kpn
+        )
+
         def _publish(channel: pika.channel.Channel):
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_KPN_RK_PREFIX}{package_name}",
-                body=kpn.to_json() if isinstance(kpn, models.KnownPackageName) else f"\"{kpn}\"",
+                body=(
+                    kpn.to_json()
+                    if isinstance(kpn, models.KnownPackageName)
+                    else f'"{kpn}"'
+                ),
             )
 
         if channel:

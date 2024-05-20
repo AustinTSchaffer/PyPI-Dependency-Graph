@@ -14,7 +14,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger('pipdepgraph.entrypoints.load_top_8000_package_names')
+logger = logging.getLogger("pipdepgraph.entrypoints.load_top_8000_package_names")
 
 
 async def main():
@@ -37,15 +37,14 @@ async def main():
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
             logger.info("Fetching list of top packages")
-            result = await client.get("https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json")
+            result = await client.get(
+                "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json"
+            )
             if not result.ok:
                 raise ValueError(result)
 
             package_list = await result.json()
-            package_names = [
-                row['project']
-                for row in package_list['rows']
-            ]
+            package_names = [row["project"] for row in package_list["rows"]]
 
             await kpnr.insert_known_package_names(package_names)
 

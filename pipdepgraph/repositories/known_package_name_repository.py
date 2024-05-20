@@ -34,12 +34,9 @@ class KnownPackageNameRepository:
             params = []
 
             if isinstance(package_names[0], models.KnownPackageName):
-                query += (
-                    " (package_name, date_discovered, date_last_checked) values "
-                )
+                query += " (package_name, date_discovered, date_last_checked) values "
                 query += ",".join(
-                    "(%s, coalesce(%s, now()), %s)"
-                    for _ in range(len(package_names))
+                    "(%s, coalesce(%s, now()), %s)" for _ in range(len(package_names))
                 )
 
                 params = [None] * MAX_PARAMS_PER_INSERT * len(package_names)
@@ -63,10 +60,7 @@ class KnownPackageNameRepository:
             await cursor.execute(query, params)
             if return_inserted:
                 rows = await cursor.fetchall()
-                return [
-                    models.KnownPackageName(**row)
-                    for row in rows
-                ]
+                return [models.KnownPackageName(**row) for row in rows]
             else:
                 return []
 
@@ -77,10 +71,17 @@ class KnownPackageNameRepository:
         return_inserted: bool = False,
     ) -> list[models.KnownPackageName]:
         if cursor:
-            return await self._insert_known_package_names(package_names, cursor, return_inserted=return_inserted)
+            return await self._insert_known_package_names(
+                package_names, cursor, return_inserted=return_inserted
+            )
         else:
-            async with self.db_pool.connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
-                result = await self._insert_known_package_names(package_names, cursor, return_inserted=return_inserted)
+            async with (
+                self.db_pool.connection() as conn,
+                conn.cursor(row_factory=dict_row) as cursor,
+            ):
+                result = await self._insert_known_package_names(
+                    package_names, cursor, return_inserted=return_inserted
+                )
                 await cursor.execute("commit;")
                 return result
 
@@ -90,9 +91,7 @@ class KnownPackageNameRepository:
         if not package_names:
             return
 
-        query = (
-            f"update {table_names.KNOWN_PACKAGE_NAMES} set date_last_checked = %s where package_name = %s;"
-        )
+        query = f"update {table_names.KNOWN_PACKAGE_NAMES} set date_last_checked = %s where package_name = %s;"
         params_seq = [(pn.date_last_checked, pn.package_name) for pn in package_names]
 
         await cursor.executemany(query, params_seq)

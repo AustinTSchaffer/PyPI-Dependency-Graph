@@ -91,7 +91,9 @@ class KnownPackageProcessingService:
         )
 
         if not _package_name:
-            await self.known_package_names_repo.insert_known_package_names([package_name])
+            await self.known_package_names_repo.insert_known_package_names(
+                [package_name]
+            )
             _package_name = await self.known_package_names_repo.get_known_package_name(
                 package_name
             )
@@ -109,9 +111,9 @@ class KnownPackageProcessingService:
 
         now = datetime.datetime.now()
         should_process_package_name = (
-            ignore_date_last_checked or
-            package_name.date_last_checked is None or
-            package_name.date_last_checked < (now - RECHECK_PACKAGE_NAME_INTERVAL)
+            ignore_date_last_checked
+            or package_name.date_last_checked is None
+            or package_name.date_last_checked < (now - RECHECK_PACKAGE_NAME_INTERVAL)
         )
 
         if not should_process_package_name:
@@ -126,7 +128,9 @@ class KnownPackageProcessingService:
         if not package_vers_dists_result:
             logger.debug(f"{package_name} - Marking package checked.")
             package_name.date_last_checked = now
-            await self.known_package_names_repo.update_known_package_names([package_name])
+            await self.known_package_names_repo.update_known_package_names(
+                [package_name]
+            )
             return
 
         known_versions: list[models.KnownVersion] = [
@@ -145,7 +149,9 @@ class KnownPackageProcessingService:
                 parsed_version = packaging.version.parse(known_version.package_version)
                 for release_term in parsed_version.release:
                     if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
-                        raise ValueError(f"{package_name.package_name} - Version {known_version.package_version} contains a term larger than {constants.PACKAGE_RELEASE_TERM_MAX_SIZE}")
+                        raise ValueError(
+                            f"{package_name.package_name} - Version {known_version.package_version} contains a term larger than {constants.PACKAGE_RELEASE_TERM_MAX_SIZE}"
+                        )
 
                 known_version.package_release = parsed_version.release
             except Exception as ex:
@@ -154,16 +160,21 @@ class KnownPackageProcessingService:
                     exc_info=ex,
                 )
 
-        async with self.db_pool.connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+        async with self.db_pool.connection() as conn, conn.cursor(
+            row_factory=dict_row
+        ) as cursor:
             try:
                 logger.debug(f"{package_name} - Saving version information.")
-                await self.known_versions_repo.insert_known_versions(known_versions, cursor=cursor)
+                await self.known_versions_repo.insert_known_versions(
+                    known_versions, cursor=cursor
+                )
 
                 logger.debug(f"{package_name} - Building known_version_id map.")
                 known_version_id_map = {
                     known_version.package_version: known_version.known_version_id
                     async for known_version in self.known_versions_repo.iter_known_versions(
-                        package_name=package_name.package_name, cursor=cursor,
+                        package_name=package_name.package_name,
+                        cursor=cursor,
                     )
                 }
 
@@ -186,23 +197,31 @@ class KnownPackageProcessingService:
                 ]
 
                 logger.debug(f"{package_name} - Saving distribution information.")
-                result = await self.version_distributions_repo.insert_version_distributions(
-                    version_distributions,
-                    return_inserted=(self.rabbitmq_publish_service is not None),
-                    cursor=cursor,
+                result = (
+                    await self.version_distributions_repo.insert_version_distributions(
+                        version_distributions,
+                        return_inserted=(self.rabbitmq_publish_service is not None),
+                        cursor=cursor,
+                    )
                 )
 
                 if self.rabbitmq_publish_service is not None and result:
-                    logger.debug(f"{package_name} - Publishing new version distributions to RabbitMQ.")
+                    logger.debug(
+                        f"{package_name} - Publishing new version distributions to RabbitMQ."
+                    )
                     self.rabbitmq_publish_service.publish_version_distributions(result)
 
                 logger.debug(f"{package_name} - Marking package checked.")
                 package_name.date_last_checked = now
-                await self.known_package_names_repo.update_known_package_names([package_name], cursor=cursor)
+                await self.known_package_names_repo.update_known_package_names(
+                    [package_name], cursor=cursor
+                )
 
-                await cursor.execute('commit;')
+                await cursor.execute("commit;")
 
             except Exception as ex:
-                logger.error("Error while processing package %s", package_name, exc_info=ex)
-                await cursor.execute('rollback;')
+                logger.error(
+                    "Error while processing package %s", package_name, exc_info=ex
+                )
+                await cursor.execute("rollback;")
                 raise

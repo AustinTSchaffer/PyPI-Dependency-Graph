@@ -16,7 +16,9 @@ from pipdepgraph import constants
 
 
 def initialize_async_connection_pool() -> AsyncConnectionPool:
-    return AsyncConnectionPool(conninfo=constants.POSTGRES_CONNECTION_STRING, max_size=10)
+    return AsyncConnectionPool(
+        conninfo=constants.POSTGRES_CONNECTION_STRING, max_size=10
+    )
 
 
 def initialize_client_session() -> aiohttp.ClientSession:
@@ -54,7 +56,10 @@ def initialize_rabbitmq_connection() -> pika.BlockingConnection:
     rabbitmq_connection = pika.BlockingConnection(pika.ConnectionParameters(**params))
     return rabbitmq_connection
 
-def declare_rabbitmq_infrastructure(channel: pika.adapters.blocking_connection.BlockingChannel):
+
+def declare_rabbitmq_infrastructure(
+    channel: pika.adapters.blocking_connection.BlockingChannel,
+):
     channel.exchange_declare(
         constants.RABBITMQ_EXCHANGE, exchange_type="topic", durable=True
     )

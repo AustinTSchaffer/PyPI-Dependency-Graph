@@ -16,7 +16,7 @@ from pipdepgraph.repositories import (
     version_distribution_repository,
 )
 
-logger = logging.getLogger('pipdepgraph.entrypoints.unprocessed_record_processor')
+logger = logging.getLogger("pipdepgraph.entrypoints.unprocessed_record_processor")
 
 
 async def main():
@@ -34,12 +34,16 @@ async def main():
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
 
-        logger.info("Initializing known_packages_processing_service.KnownPackageProcessingService")
+        logger.info(
+            "Initializing known_packages_processing_service.KnownPackageProcessingService"
+        )
         kpps = known_packages_processing_service.KnownPackageProcessingService(
             kpnr=kpnr, kvr=kvr, vdr=vdr, pypi=pypi, db_pool=db_pool
         )
 
-        logger.info("Initializing version_distribution_processing_service.VersionDistributionProcessingService")
+        logger.info(
+            "Initializing version_distribution_processing_service.VersionDistributionProcessingService"
+        )
         vdps = version_distribution_processing_service.VersionDistributionProcessingService(
             vdr=vdr, ddr=ddr, pypi=pypi, db_pool=db_pool
         )

@@ -86,10 +86,7 @@ class VersionDistributionRepository:
             await cursor.execute(query, params)
             if return_inserted:
                 rows = await cursor.fetchall()
-                return [
-                    models.VersionDistribution(**row)
-                    for row in rows
-                ]
+                return [models.VersionDistribution(**row) for row in rows]
             else:
                 return []
 
@@ -104,7 +101,9 @@ class VersionDistributionRepository:
                 version_distributions, cursor, return_inserted=return_inserted
             )
         else:
-            async with self.db_pool.connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            async with self.db_pool.connection() as conn, conn.cursor(
+                row_factory=dict_row
+            ) as cursor:
                 result = await self._insert_version_distributions(
                     version_distributions, cursor, return_inserted=return_inserted
                 )

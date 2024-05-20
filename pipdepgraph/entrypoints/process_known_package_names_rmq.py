@@ -26,7 +26,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger('pipdepgraph.entrypoints.process_known_package_names_rmq')
+logger = logging.getLogger("pipdepgraph.entrypoints.process_known_package_names_rmq")
 
 
 async def main():
@@ -44,9 +44,13 @@ async def main():
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
-        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(common.initialize_rabbitmq_connection)
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(
+            common.initialize_rabbitmq_connection
+        )
 
-        logger.info("Initializing known_packages_processing_service.KnownPackageProcessingService")
+        logger.info(
+            "Initializing known_packages_processing_service.KnownPackageProcessingService"
+        )
         kpps = known_packages_processing_service.KnownPackageProcessingService(
             kpnr=kpnr,
             kvr=kvr,
@@ -58,7 +62,9 @@ async def main():
 
         logger.info("Starting RabbitMQ consumer thread")
 
-        known_package_names_queue: queue.Queue[models.KnownPackageName | str] = queue.Queue()
+        known_package_names_queue: queue.Queue[models.KnownPackageName | str] = (
+            queue.Queue()
+        )
         ack_queue: queue.Queue[bool] = queue.Queue()
         consume_from_rabbitmq_thread = threading.Thread(
             target=consume_from_rabbitmq_target,
@@ -73,7 +79,9 @@ async def main():
 
             try:
                 known_package_name = known_package_names_queue.get(timeout=5.0)
-                await kpps.process_package_name(known_package_name, ignore_date_last_checked=True)
+                await kpps.process_package_name(
+                    known_package_name, ignore_date_last_checked=True
+                )
                 ack_queue.put(True)
 
             except queue.Empty as ex:
