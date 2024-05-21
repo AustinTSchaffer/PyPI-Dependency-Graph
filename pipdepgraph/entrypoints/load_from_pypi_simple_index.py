@@ -64,6 +64,12 @@ async def main():
 
             if constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED:
                 logger.info(f"{len(packages_inserted)} new packages found.")
+                if packages_inserted:
+                    logger.info(
+                        f"Publishing {len(packages_inserted)} new packages to RabbitMQ"
+                    )
+                    for new_package in packages_inserted:
+                        rmq_pub.publish_known_package_name(new_package, channel=channel)
 
             logger.info(f"Publishing {len(package_names)} package names to RabbitMQ")
             for package_name in package_names:
