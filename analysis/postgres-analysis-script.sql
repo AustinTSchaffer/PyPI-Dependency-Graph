@@ -13,8 +13,6 @@ left join pg_class on relname = table_name
 where table_schema = 'pypi_packages'
 order by row_count_estimate;
 
-select count(*) over(), *, regexp_match(kpn.package_name, '^[hijklmno].+') from known_package_names kpn where regexp_match(kpn.package_name, '^[hijklmno].+') is not null and date_last_checked is null;
-
 select * from known_package_names kpn order by date_discovered asc;
 select count(*) from direct_dependencies dd;
 
@@ -78,6 +76,11 @@ select package_name, count(*) from pypi_packages.known_versions
 where package_release = '{}'
 group by package_name
 order by count(*) desc;
+
+--
+-- 
+--
+select avg(vd.metadata_file_size) from version_distributions vd where vd.processed;
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
