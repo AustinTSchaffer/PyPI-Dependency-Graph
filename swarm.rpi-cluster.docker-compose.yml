@@ -40,13 +40,13 @@ services:
     volumes:
       - broker:/var/lib/postgresql/data
 
-  package_name_processor:
+  kpn_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     command: ["poetry", "run", "python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
       restart_policy:
         condition: any
-      replicas: 12
+      replicas: 20
       placement:
         constraints:
           - node.labels.role==app
@@ -62,17 +62,17 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
-      RABBITMQ_CTAG_PREFIX: "package_name_processor.{{.Task.Slot}}."
+      RABBITMQ_CTAG_PREFIX: "kpn_processor.{{.Task.Slot}}."
     depends_on:
       - db
       - broker
 
-  version_distribution_processor:
+  vd_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     deploy:
       restart_policy:
         condition: any
-      replicas: 26
+      replicas: 20
       placement:
         constraints:
           - node.labels.role==app
@@ -89,13 +89,13 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
-      RABBITMQ_CTAG_PREFIX: "version_distribution_processor.{{.Task.Slot}}."
+      RABBITMQ_CTAG_PREFIX: "vd_processor.{{.Task.Slot}}."
       RABBITMQ_VD_SUB_PREFETCH: 1000
     depends_on:
       - db
       - broker
 
-  unprocessed_record_loader:
+  upl:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     deploy:
       restart_policy:
@@ -118,6 +118,35 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "unprocessed_record_loader.{{.Task.Slot}}."
+      UPL_LOAD_VERSION_DISTRIBUTIONS: "true"
+      UPL_LOAD_PACKAGE_NAMES: "false"
+    depends_on:
+      - db
+      - broker
+
+  pypi_loader:
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.role==app
+    command: ["poetry", "run", "python", "pipdepgraph/entrypoints/load_from_pypi_simple_index.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+      RABBITMQ_CTAG_PREFIX: "pypi_loader.{{.Task.Slot}}."
       UPL_LOAD_VERSION_DISTRIBUTIONS: "true"
       UPL_LOAD_PACKAGE_NAMES: "false"
     depends_on:

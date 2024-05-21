@@ -42,7 +42,7 @@ async def main():
             prefix_regex = constants.POPULAR_PACKAGE_LOADER_PREFIX_REGEX
 
             logger.info(
-                rf"Fetching list of packages from PyPI with prefix: r'{prefix_regex.pattern}'"
+                f"Fetching list of packages from PyPI with prefix: r'{prefix_regex.pattern}'"
             )
 
             prefix_regex = re.compile(prefix_regex)
