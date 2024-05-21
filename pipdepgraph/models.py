@@ -55,6 +55,7 @@ class KnownVersion:
             date_discovered=data.get("date_discovered", None),
         )
 
+
 @dataclasses.dataclass
 class VersionDistribution:
     known_version_id: Optional[str]

@@ -18,6 +18,7 @@ class DirectDependencyResult:
     version_distribution: models.VersionDistribution
     direct_dependency: models.DirectDependency
 
+
 class DirectDependencyRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
@@ -78,7 +79,6 @@ class DirectDependencyRepository:
                 await self._insert_direct_dependencies(direct_dependencies, cursor)
                 await cursor.execute("commit;")
 
-
     async def iter_direct_dependencies(
         self,
         kv_package_name: str | None = None,
@@ -87,8 +87,7 @@ class DirectDependencyRepository:
         vd_processed: bool | None = None,
         output_as_dict=False,
     ) -> AsyncIterable[DirectDependencyResult | dict]:
-        """
-        """
+        """ """
 
         async with (
             self.db_pool.connection() as conn,
@@ -136,9 +135,7 @@ class DirectDependencyRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += (
-                    " (kv.package_name = %s) "
-                )
+                query += " (kv.package_name = %s) "
                 params.append(kv_package_name)
 
             if kv_package_version is not None:
@@ -146,9 +143,7 @@ class DirectDependencyRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += (
-                    " (kv.package_version = %s) "
-                )
+                query += " (kv.package_version = %s) "
                 params.append(kv_package_version)
 
             if vd_package_type is not None:
@@ -156,9 +151,7 @@ class DirectDependencyRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += (
-                    " (vd.package_type = %s) "
-                )
+                query += " (vd.package_type = %s) "
                 params.append(vd_package_type)
 
             if vd_processed is not None:
@@ -166,16 +159,20 @@ class DirectDependencyRepository:
                     query += " where "
                 else:
                     query += " and "
-                query += (
-                    " (vd.processed = %s) "
-                )
+                query += " (vd.processed = %s) "
                 params.append(vd_processed)
 
             await cursor.execute(query, params)
             async for record in cursor:
-                yield record if output_as_dict else DirectDependencyResult(
-                    known_package_name=models.KnownPackageName.from_dict(record),
-                    known_version=models.KnownVersion.from_dict(record),
-                    version_distribution=models.VersionDistribution.from_dict(record),
-                    direct_dependency=models.DirectDependency.from_dict(record),
+                yield (
+                    record
+                    if output_as_dict
+                    else DirectDependencyResult(
+                        known_package_name=models.KnownPackageName.from_dict(record),
+                        known_version=models.KnownVersion.from_dict(record),
+                        version_distribution=models.VersionDistribution.from_dict(
+                            record
+                        ),
+                        direct_dependency=models.DirectDependency.from_dict(record),
+                    )
                 )

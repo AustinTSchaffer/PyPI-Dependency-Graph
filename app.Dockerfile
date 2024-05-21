@@ -8,8 +8,9 @@ USER app_user
 WORKDIR /home/app_user/app
 COPY poetry.lock .
 COPY pyproject.toml .
-RUN poetry install --no-root
+
+RUN poetry install --only main --no-root
 COPY . .
-RUN poetry install
+RUN poetry install --only main
 
 CMD [ "poetry", "run", "python", "pipdepgraph/main.py" ]
