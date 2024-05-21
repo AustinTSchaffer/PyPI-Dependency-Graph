@@ -12,6 +12,7 @@ import packaging.metadata
 from pipdepgraph import models
 
 PYPI_HOST = "https://pypi.org"
+POPULAR_PACKAGE_API_URL = "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json"
 PACKAGE_NAME_REGEX = re.compile(r'/simple/(?P<package_name>[a-z0-9\-_\.]+)', re.I)
 
 logger = logging.getLogger(__name__)
