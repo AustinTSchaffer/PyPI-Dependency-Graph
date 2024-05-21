@@ -37,6 +37,13 @@ join direct_dependencies dd on dd.version_distribution_id = vd.version_distribut
 group by package_type;
 
 --
+-- Average size of a metadata file
+--
+select avg(vd.metadata_file_size)
+from version_distributions vd
+where vd.processed and vd.metadata_file_size != 0;
+
+--
 -- Packages without any versions.
 --
 select count(*) over(), * from known_package_names kpn
@@ -76,11 +83,6 @@ select package_name, count(*) from pypi_packages.known_versions
 where package_release = '{}'
 group by package_name
 order by count(*) desc;
-
---
--- 
---
-select avg(vd.metadata_file_size) from version_distributions vd where vd.processed;
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name

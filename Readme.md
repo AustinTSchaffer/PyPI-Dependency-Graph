@@ -164,7 +164,7 @@ where dd.dependency_name = 'ipython' and kv.package_name = 'ipython';
   - https://www.python.org/dev/peps/pep-0427
 - https://github.com/sethmlarson/pypi-data
   - Only has dependency information for the latest version of each package.
-
+- https://dustingram.com/articles/2018/03/05/why-pypi-doesnt-know-dependencies/
 
 ## Docker Stack
 
