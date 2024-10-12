@@ -4,7 +4,7 @@ import packaging.utils
 from psycopg.rows import dict_row
 
 from psycopg_pool import AsyncConnectionPool
-from pipdepgraph import models, pypi_api
+from pipdepgraph import models, pypi_api, constants
 from pipdepgraph.repositories import (
     direct_dependency_repository,
     known_package_name_repository,
@@ -117,25 +117,26 @@ class VersionDistributionProcessingService:
                     cursor=cursor,
                 )
 
-                distinct_package_names = list(
-                    {dd.dependency_name for dd in direct_dependencies}
-                )
-
-                logger.debug(
-                    f"{distribution.version_distribution_id} - Propagating {len(distinct_package_names)} back to Postgres."
-                )
-
-                result = await self.known_package_names_repo.insert_known_package_names(
-                    distinct_package_names,
-                    return_inserted=(self.rabbitmq_publish_service is not None),
-                    cursor=cursor,
-                )
-
-                if self.rabbitmq_publish_service is not None and result:
-                    logger.debug(
-                        f"{distribution.version_distribution_id} - Propagating {len(result)} package names to RabbitMQ."
+                if constants.VDP_DISCOVER_PACKAGE_NAMES:
+                    distinct_package_names = list(
+                        {dd.dependency_name for dd in direct_dependencies}
                     )
-                    self.rabbitmq_publish_service.publish_known_package_names(result)
+
+                    logger.debug(
+                        f"{distribution.version_distribution_id} - Propagating {len(distinct_package_names)} back to Postgres."
+                    )
+
+                    result = await self.known_package_names_repo.insert_known_package_names(
+                        distinct_package_names,
+                        return_inserted=(self.rabbitmq_publish_service is not None),
+                        cursor=cursor,
+                    )
+
+                    if self.rabbitmq_publish_service is not None and result:
+                        logger.debug(
+                            f"{distribution.version_distribution_id} - Propagating {len(result)} package names to RabbitMQ."
+                        )
+                        self.rabbitmq_publish_service.publish_known_package_names(result)
 
                 logger.debug(
                     f"{distribution.version_distribution_id} - Marking processed."

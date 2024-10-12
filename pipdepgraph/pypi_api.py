@@ -12,7 +12,7 @@ import packaging.metadata
 from pipdepgraph import models
 
 PYPI_HOST = "https://pypi.org"
-POPULAR_PACKAGE_API_URL = (
+POPULAR_PACKAGES_URL = (
     "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json"
 )
 PACKAGE_NAME_REGEX = re.compile(r"/simple/(?P<package_name>[a-z0-9\-_\.]+)", re.I)
@@ -34,6 +34,17 @@ class PackageVersionDistributionResponse:
         processed: bool
 
     versions: dict[str, list[VersionDistribution]]
+
+
+@dataclasses.dataclass
+class PopularPackagesResponse:
+    @dataclasses.dataclass
+    class PopularPackage:
+        package_name: str
+        popularity: int
+
+    popularity_metric: str
+    packages: list[PopularPackage]
 
 
 class PypiApi:
@@ -151,3 +162,21 @@ class PypiApi:
             if re_result := PACKAGE_NAME_REGEX.search(line.decode("utf-8")):
                 package_name = re_result["package_name"]
                 yield package_name
+
+    async def get_popular_packages(self) -> PopularPackagesResponse:
+        response = await self.session.get(POPULAR_PACKAGES_URL)
+        if not response.ok:
+            raise ValueError(f"Error getting list of popular packages from URL: {POPULAR_PACKAGES_URL}")
+
+        json_response = await response.json()
+        packages = [
+            PopularPackagesResponse.PopularPackage(
+                package_name=row['project'],
+                popularity=row['download_count'],
+            )
+            for row in json_response['rows']
+        ]
+
+        result = PopularPackagesResponse(popularity_metric='downloads', packages=packages)
+
+        return result

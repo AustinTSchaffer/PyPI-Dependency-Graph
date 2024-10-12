@@ -1,9 +1,6 @@
-import asyncio
-import asyncio.proactor_events
-import functools
 import logging
 import sys
-import threading
+import textwrap
 
 import aiohttp
 import pika
@@ -15,9 +12,27 @@ from psycopg_pool import AsyncConnectionPool
 from pipdepgraph import constants
 
 
-def initialize_async_connection_pool() -> AsyncConnectionPool:
+def initialize_async_connection_pool(
+    host=constants.POSTGRES_HOST,
+    port=constants.POSTGRES_PORT,
+    db=constants.POSTGRES_DB,
+    username=constants.POSTGRES_USERNAME,
+    password=constants.POSTGRES_PASSWORD,
+    max_pool_size=10,
+) -> AsyncConnectionPool:
+
+    connection_string = textwrap.dedent(
+        f"""
+            dbname={db}
+            user={username}
+            password={password}
+            host={host}
+            port={port}
+        """
+    )
+
     return AsyncConnectionPool(
-        conninfo=constants.POSTGRES_CONNECTION_STRING, max_size=10
+        conninfo=connection_string, max_size=max_pool_size,
     )
 
 

@@ -7,14 +7,6 @@ POSTGRES_DB = os.getenv("POSTGRES_DB", "defaultdb")
 POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME", "pypi_scraper")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 
-POSTGRES_CONNECTION_STRING = f"""
-dbname={POSTGRES_DB}
-user={POSTGRES_USERNAME}
-password={POSTGRES_PASSWORD}
-host={POSTGRES_HOST}
-port={POSTGRES_PORT}
-"""
-
 POSTGRES_MAX_QUERY_PARAMS = 65535
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
@@ -35,6 +27,10 @@ RABBITMQ_VD_RK = f"{RABBITMQ_VD_RK_PREFIX}#"
 RABBITMQ_VD_SUB_PREFETCH = int(os.getenv("RABBITMQ_VD_SUB_PREFETCH", 100))
 
 RABBITMQ_CTAG_PREFIX = os.getenv("RABBITMQ_CTAG_PREFIX", None)
+
+VDP_DISCOVER_PACKAGE_NAMES = bool(
+    os.getenv("VDP_DISCOVER_PACKAGE_NAMES", "false").strip().lower() == "true"
+)
 
 UPL_LOAD_PACKAGE_NAMES = bool(
     os.getenv("UPL_LOAD_PACKAGE_NAMES", "true").strip().lower() == "true"
