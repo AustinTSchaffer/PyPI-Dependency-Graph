@@ -46,7 +46,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 20
+      replicas: 10
       placement:
         constraints:
           - node.labels.role==app
@@ -72,7 +72,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 20
+      replicas: 10
       placement:
         constraints:
           - node.labels.role==app
@@ -91,35 +91,6 @@ services:
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "vd_processor.{{.Task.Slot}}."
       RABBITMQ_VD_SUB_PREFETCH: 1000
-    depends_on:
-      - db
-      - broker
-
-  upl:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
-    deploy:
-      restart_policy:
-        condition: on-failure
-      replicas: 1
-      placement:
-        constraints:
-          - node.labels.role==app
-    command: ["poetry", "run", "python", "pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
-    networks:
-      - db_net
-      - broker_net
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_DB: defaultdb
-      POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
-      RABBITMQ_HOST: broker
-      RABBITMQ_VHOST: pypi_scraper
-      RABBITMQ_USERNAME: pypi_scraper
-      RABBITMQ_PASSWORD: password
-      RABBITMQ_CTAG_PREFIX: "unprocessed_record_loader.{{.Task.Slot}}."
-      UPL_LOAD_VERSION_DISTRIBUTIONS: "true"
-      UPL_LOAD_PACKAGE_NAMES: "false"
     depends_on:
       - db
       - broker
