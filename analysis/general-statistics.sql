@@ -65,3 +65,19 @@ with num_dists_per_version as (
 	from version_distributions vd
 	group by vd.known_version_id
 ) select avg(count_) from num_dists_per_version;
+
+--
+-- Percentage of known_versions with processed = true
+--
+select (
+	100.0 *
+	(select count(vd.processed)::float from pypi_packages.version_distributions vd where vd.processed = true) /
+	(select count(vd.processed)::float from pypi_packages.version_distributions vd)
+) as "percentage complete";
+
+--
+-- Average size of a metadata file
+--
+select avg(vd.metadata_file_size)
+from version_distributions vd
+where vd.processed and vd.metadata_file_size != 0;

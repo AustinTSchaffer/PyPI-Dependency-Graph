@@ -1,28 +1,8 @@
---
--- Current table sizes with estimate counts
---
-select
-  table_name,
-  reltuples as row_count_estimate,
-  pg_size_pretty(pg_total_relation_size('pypi_packages.' || table_name)) as size_pretty,
-  pg_total_relation_size('pypi_packages.' || table_name) as size_bytes,
-  pg_size_pretty(sum(pg_total_relation_size('pypi_packages.' || table_name)) over()) as total_size_pretty,
-  sum(pg_total_relation_size('pypi_packages.' || table_name)) over() total_size
-from information_schema.tables
-left join pg_class on relname = table_name
-where table_schema = 'pypi_packages'
-order by row_count_estimate;
 
-select * from known_package_names kpn order by date_discovered asc;
-select count(*) from direct_dependencies dd;
 
 --
 -- package types with no dependencies.
 --
-
-select distinct package_type
-from version_distributions vd
-where package_type != 'bdist_wheel';
 
 select
 	package_type,
@@ -37,11 +17,16 @@ join direct_dependencies dd on dd.version_distribution_id = vd.version_distribut
 group by package_type;
 
 --
--- Average size of a metadata file
+-- 
 --
-select avg(vd.metadata_file_size)
-from version_distributions vd
-where vd.processed and vd.metadata_file_size != 0;
+select
+	extras,
+	count(*) c
+from direct_dependencies
+group by extras
+order by c desc;
+
+
 
 --
 -- Packages without any versions.
@@ -53,36 +38,11 @@ where kv.known_version_id is null;
 -- delete from known_package_names kpn where
 -- kpn.package_name != lower(regexp_replace(kpn.package_name, '[-_\.]+', '-', 'g'));
 
---
--- Non-canonicalized duplicate package names.
---
 
-select
-	kpn.package_name,
-	pypi_packages.canonicalize_package_name(kpn.package_name) canonname
-from known_package_names kpn
-where pypi_packages.canonicalize_package_name(kpn.package_name) != kpn.package_name;
-
---
--- Percentage of known_versions with processed = true
---
-select (
-	100.0 *
-	(select count(vd.processed)::float from pypi_packages.version_distributions vd where vd.processed = true) /
-	(select count(vd.processed)::float from pypi_packages.version_distributions vd)
-) as "percentage complete";
 
 select count(*) from pypi_packages.version_distributions vd where vd.processed = false;
 
---
--- Packages with non-compliant version strings
---
-select * from pypi_packages.known_versions where package_release = '{}';
 
-select package_name, count(*) from pypi_packages.known_versions
-where package_release = '{}'
-group by package_name
-order by count(*) desc;
 
 --
 -- Determining the set of package_name/version combinations which depend on dependency_name
@@ -104,23 +64,6 @@ join pypi_packages.known_versions kv on vd.known_version_id = kv.known_version_i
 where dd.dependency_name = 'botocore';
 
 --
--- Propagate newly discovered package names back into known_package_names
---
-
-select distinct dependency_name, count(*) over()
-from pypi_packages.direct_dependencies
-where dependency_name not in (select package_name from known_package_names);
-
-begin;
-
-insert into pypi_packages.known_package_names (package_name)
-select distinct dependency_name from pypi_packages.direct_dependencies
-on conflict do nothing;
-
-commit;
-rollback;
-
---
 -- Deps of boto3 version 1.2.3
 --
 select kv.*, vd.*, dd.*
@@ -128,35 +71,12 @@ from known_versions kv
 left join version_distributions vd on vd.known_version_id = kv.known_version_id
 left join direct_dependencies dd on dd.version_distribution_id = vd.version_distribution_id
 where
-	kv.package_name = 'notebook' and vd.package_type = 'bdist_wheel'
+	dd.extras is not null
+	and dd.extras like '%extra%' and dd.extras like '% or %'
+	limit 100
 ;
 
---
--- Self-referential package dependencies
---
-select
-	kv.package_name, kv.package_version,
-	vd.python_version, vd.requires_python, vd.upload_time, vd.yanked,
-	dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint
-from pypi_packages.direct_dependencies dd
-join version_distributions vd on vd.version_distribution_id = dd.version_distribution_id
-join known_versions kv on kv.known_version_id = vd.known_version_id
-where dd.dependency_name = kv.package_name;
 
---
--- Average number of dependencies per known version (only versions that have completed processing).
---
-
-with
-	subq as (select dd.known_version_id, count(*) c
-		from direct_dependencies dd
-		join known_versions kv on kv.known_version_id = dd.known_version_id and kv.processed
-		group by dd.known_version_id
-	)
-select avg(c) from subq;
-
-select * from known_package_names kpn order by date_discovered;
-select * from known_versions kv;
 
 -- Dep tree for boto3 (WIP)
 --with
@@ -225,32 +145,3 @@ select * from known_versions kv;
     JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid
    WHERE NOT blocked_locks.granted;
 
-
---
--- Check for dupes
---
-select kpn.*, kv.* from known_package_names kpn
-left join known_versions kv on kv.package_name = kpn.package_name
-where kv.known_version_id is null;
-
-select
-    package_name,
-    date_discovered,
-    date_last_checked
-from (
-    select
-        *,
-        rank() over(partition by package_name order by date_discovered asc) rank_
-    from pypi_packages.known_package_names kpn
-    where package_name in (
-        select
-            package_name
-        from pypi_packages.known_package_names kpn
-        group by package_name
-        having count(*) > 1
-    )
-) subq
-where subq.rank_ > 1;
-
-select count(*) from direct_dependencies dd;
--- truncate table pypi_packages.version_distributions cascade;
