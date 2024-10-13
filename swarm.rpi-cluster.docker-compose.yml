@@ -46,7 +46,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 10
+      replicas: 16
       placement:
         constraints:
           - node.labels.role==app
@@ -72,7 +72,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 10
+      replicas: 16
       placement:
         constraints:
           - node.labels.role==app
@@ -90,7 +90,6 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "vd_processor.{{.Task.Slot}}."
-      RABBITMQ_VD_SUB_PREFETCH: 1000
     depends_on:
       - db
       - broker
@@ -100,7 +99,7 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-      replicas: 1
+      replicas: 0
       placement:
         constraints:
           - node.labels.role==app
