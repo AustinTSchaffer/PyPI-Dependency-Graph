@@ -20,14 +20,14 @@ class KnownVersionRepository:
         if not known_versions:
             return None
 
-        PARAMS_PER_INSERT = 4
+        PARAMS_PER_INSERT = 5
         for known_versions in itertools.batched(
             known_versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
         ):
             query = f"insert into {table_names.KNOWN_VERSIONS} (package_name, package_version, package_release, date_discovered) values "
 
             query += ",".join(
-                " ( %s, %s, %s, coalesce(%s, now()) ) "
+                " ( %s, %s, %s, %s, coalesce(%s, now()) ) "
                 for _ in range(len(known_versions))
             )
             query += " on conflict do nothing; "
@@ -40,7 +40,11 @@ class KnownVersionRepository:
                 params[offset + 2] = (
                     f'{{{",".join(map(str, kv.package_release or []))}}}'
                 )
-                params[offset + 3] = kv.date_discovered
+                params[offset + 3] = (
+                    f'{{{",".join(map(str, kv.package_release_numeric or []))}}}'
+                    if kv.package_release_numeric else None
+                )
+                params[offset + 4] = kv.date_discovered
                 offset += PARAMS_PER_INSERT
 
             await cursor.execute(query, params)

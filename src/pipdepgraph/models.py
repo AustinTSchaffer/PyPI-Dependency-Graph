@@ -43,6 +43,7 @@ class KnownVersion:
     package_name: str
     package_version: str
     package_release: tuple[int, ...]
+    package_release_numeric: None | tuple[int, ...]
     date_discovered: Optional[datetime.datetime]
 
     @classmethod
@@ -52,6 +53,7 @@ class KnownVersion:
             package_name=data.get("package_name", None),
             package_version=data.get("package_version", None),
             package_release=data.get("package_release", None),
+            package_release_numeric=data.get("package_release_numeric", None),
             date_discovered=data.get("date_discovered", None),
         )
 

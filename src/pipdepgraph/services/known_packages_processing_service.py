@@ -139,6 +139,7 @@ class KnownPackageProcessingService:
                 package_name=package_name.package_name,
                 package_version=version_string,
                 package_release=None,
+                package_release_numeric=None,
                 date_discovered=None,
             )
             for version_string in package_vers_dists_result.versions.keys()
@@ -146,14 +147,18 @@ class KnownPackageProcessingService:
 
         for known_version in known_versions:
             try:
+                postgres_bigint_compatible = True
                 parsed_version = packaging.version.parse(known_version.package_version)
                 for release_term in parsed_version.release:
                     if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
-                        raise ValueError(
-                            f"{package_name.package_name} - Version {known_version.package_version} contains a term larger than {constants.PACKAGE_RELEASE_TERM_MAX_SIZE}"
-                        )
+                        postgres_bigint_compatible = False
+                        break
 
-                known_version.package_release = parsed_version.release
+                if postgres_bigint_compatible:
+                    known_version.package_release = parsed_version.release
+                else:
+                    known_version.package_release_numeric = parsed_version.release
+
             except Exception as ex:
                 logger.error(
                     f"{package_name.package_name} - Error parsing version {known_version.package_version}.",
