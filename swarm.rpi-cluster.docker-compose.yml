@@ -76,7 +76,7 @@ services:
       placement:
         constraints:
           - node.labels.role==app
-    command: ["python", "src/entrypoints/process_version_distributions_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net
       - broker_net
