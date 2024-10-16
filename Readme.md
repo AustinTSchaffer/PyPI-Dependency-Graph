@@ -44,7 +44,6 @@ Below is a screenshot of a terminal showing multiple tmux panes, most of them ru
 
 ## TODO
 
-- Run through all of the unparsed versions in the database and see if any are actually parsable, but are simply too big and need to use the new `package_release_numeric` column.
 - Currently not parsing platform compatibility from filenames.
   - Have a process for parsing that info from `.gz` and `.whl` filenames.
   - The file that those methods live in doesn't process `.egg` files.
