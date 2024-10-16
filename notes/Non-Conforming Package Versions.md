@@ -65,11 +65,14 @@ Across all of the version strings present on PyPI so far (October 2024), approxi
 of them are not natively parsable.
 
 ```sql
-select 'non-conforming' as "q", count(*) from known_versions kv where kv.package_release = '{}'
-union select 'all' as "q", count(*) from known_versions kv;
+select
+    'non-conforming' as "q", count(*) from known_versions kv
+    where kv.package_release = '{}' and package_release_numeric is null
+union select
+    'all' as "q", count(*) from known_versions kv;
 
 -- all            6222702
--- non-conforming    5129
+-- non-conforming    5078
 ```
 
 One example that shows up a lot in this list of non-conforming package version strings is
@@ -94,4 +97,67 @@ pip install 'pytz>=2004,<2005'
 # ERROR: No matching distribution found for pytz<2005,>=2004
 ```
 
-It's still possible to install this version of this package.
+It's still possible to install packages with non-conforming versions.
+Using `pytz==2013d` as an example:
+
+```bash
+python --version
+# Python 3.8.19
+
+wget https://files.pythonhosted.org/packages/3a/4c/6e6761f3c29396516ab67ef0c8ac56223dacc8c84f938464bbdd5cc9340f/pytz-2013d.zip
+unzip pytz-2013d.zip
+cd pytz-2013
+python setup.py install
+
+pip list
+
+# Package Version
+# ------- -------
+# pip     24.2
+# pytz    2013d
+```
+
+However, I don't think we need to worry about this possibility for the purposes of this project.
+
+Firstly, we really only care about wheels. They're the recommended method for packaging,
+distributing, and installing dependencies. The method above essentially relies on directly
+downloading an `sdist` distribution.
+
+Secondly, this may be an old problem. If we scan for non conforming package versions
+and look at the upload date of their most recently uploaded distribution, the last truly\* non-
+conforming package version was uploaded on Feb 5, 2016 (`pyavl==1.12_1`). I haven't yet
+established how "old" packages can be before we stop caring about them, but we certainly
+shouldn't put extra effort into making a better resolver work for packages that are over
+8 years old, and can't even be installed directly from PyPI via pip.
+
+```sql
+with
+	non_conforming_versions as (
+		select
+			known_version_id,
+			package_name,
+			package_version
+		from known_versions kv
+		where kv.package_release = '{}'
+	)
+select
+	package_name,
+	package_version,
+	max(vd.upload_time) max_upload_time
+from non_conforming_versions ncv
+left join version_distributions vd on ncv.known_version_id = vd.known_version_id
+group by package_name, package_version
+order by max_upload_time desc nulls last;
+```
+
+| package name   | package version          | last dist. upload date  |
+| -------------- | ------------------------ | ----------------------- |
+| pyavl          | 1.12_1                   | 2016-02-05 11:51:51.413 |
+| diffpy-pdffit2 | 1.0-r6773-20111122       | 2015-11-01 19:29:34.210 |
+| meliae         | 0.1.2.final.0            | 2015-09-28 08:03:46.631 |
+| meliae         | 0.2.0.final.0            | 2015-09-28 08:03:21.975 |
+| meliae         | 0.3.0.final.0            | 2015-09-28 08:02:54.618 |
+| meliae         | 0.4.0.final.0            | 2015-09-28 08:02:24.118 |
+| bandwidth-sdk  | 1.0.5-stable             | 2015-06-12 19:07:11.960 |
+| nodeshot       | 1.0.pre-alpha            | 2015-04-23 17:11:27.001 |
+| cherrypy       | 2.0.0-final              | 2015-03-24 17:45:27.518 |

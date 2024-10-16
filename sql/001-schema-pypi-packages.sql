@@ -18,6 +18,7 @@ create table pypi_packages.known_versions (
     package_name text not null,
     package_version text not null,
     package_release bigint[] not null,
+    package_release_numeric numeric[] null,
     date_discovered timestamp not null default now()
 );
 
