@@ -42,7 +42,7 @@ class KnownVersion:
     known_version_id: Optional[str | uuid.UUID]
     package_name: str
     package_version: str
-    package_release: tuple[int, ...]
+    package_release: tuple[int, ...] | None
     package_release_numeric: None | tuple[int, ...]
     date_discovered: Optional[datetime.datetime]
 

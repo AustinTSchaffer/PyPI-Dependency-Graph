@@ -3,15 +3,15 @@ import logging
 
 import packaging
 import packaging.version
+from psycopg_pool import AsyncConnectionPool
+from psycopg.rows import dict_row
 
-from pipdepgraph import models, pypi_api, constants
+from pipdepgraph import models, pypi_api, constants, core
 from pipdepgraph.repositories import (
     known_package_name_repository,
     known_version_repository,
     version_distribution_repository,
 )
-from psycopg_pool import AsyncConnectionPool
-from psycopg.rows import dict_row
 
 from pipdepgraph.services import (
     rabbitmq_publish_service,
@@ -146,24 +146,14 @@ class KnownPackageProcessingService:
         ]
 
         for known_version in known_versions:
-            try:
-                postgres_bigint_compatible = True
-                parsed_version = packaging.version.parse(known_version.package_version)
-                for release_term in parsed_version.release:
-                    if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
-                        postgres_bigint_compatible = False
-                        break
-
-                if postgres_bigint_compatible:
-                    known_version.package_release = parsed_version.release
-                else:
-                    known_version.package_release_numeric = parsed_version.release
-
-            except Exception as ex:
-                logger.error(
+            parsed_version = core.parse_version_string(known_version.package_version)
+            if parsed_version.package_release is None and parsed_version.package_release_numeric is None:
+                logger.warning(
                     f"{package_name.package_name} - Error parsing version {known_version.package_version}.",
-                    exc_info=ex,
                 )
+
+            known_version.package_release = parsed_version.package_release
+            known_version.package_release_numeric = parsed_version.package_release_numeric
 
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
