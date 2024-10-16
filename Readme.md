@@ -44,11 +44,11 @@ Below is a screenshot of a terminal showing multiple tmux panes, most of them ru
 
 ## TODO
 
+- Run through all of the unparsed versions in the database and see if any are actually parsable, but are simply too big and need to use the new `package_release_numeric` column.
 - Currently not parsing platform compatibility from filenames.
   - Have a process for parsing that info from `.gz` and `.whl` filenames.
   - The file that those methods live in doesn't process `.egg` files.
 - Need to do some analysis to see how much version information changes between different "version metadata"
-- Sometimes the unprocessed record loader becomes a zombie. Also pretty sure that at the DB's current size, running the loader causes all of the app nodes to crash.
 - Tons of documentation
   - Method-level and class-level docstrings
   - Architecture diagram
