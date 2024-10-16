@@ -25,9 +25,6 @@ with dupes as (
 using dupes
 where kpn.package_name = dupes.package_name and kpn.date_discovered = dupes.date_discovered;
 
-
-reindex table pypi_packages.known_package_names;
-
 commit;
 
 delete from pypi_packages.known_versions where package_name ilike 'json-spec';
@@ -56,7 +53,32 @@ where kpn.package_name = dupes.package_name and kpn.date_discovered = dupes.date
 
 commit;
 
-reindex table pypi_packages.direct_dependencies;
+with dupes as (
+	select
+		package_url,
+		processed,
+		version_distribution_id
+	from (
+		select
+			*,
+			rank() over(partition by package_url order by version_distribution_id asc) rank_
+		from pypi_packages.version_distributions vd
+		where package_url in (
+			select
+				package_url
+			from pypi_packages.version_distributions vd
+			group by package_url
+			having count(*) > 1
+		)
+	) subq
+	where subq.rank_ > 1
+) delete from pypi_packages.version_distributions vd
+using dupes
+where vd.version_distribution_id = dupes.version_distribution_id;
+
+commit;
+
+reindex table pypi_packages.known_package_names;
 reindex table pypi_packages.known_versions;
 reindex table pypi_packages.version_distributions;
 reindex table pypi_packages.direct_dependencies;
