@@ -42,7 +42,7 @@ services:
 
   kpn_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
-    command: ["python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     deploy:
       restart_policy:
         condition: any
@@ -76,7 +76,7 @@ services:
       placement:
         constraints:
           - node.labels.role==app
-    command: ["python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
+    command: ["python", "src/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -103,7 +103,7 @@ services:
       placement:
         constraints:
           - node.labels.role==app
-    command: ["python", "pipdepgraph/entrypoints/load_from_pypi_simple_index.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/load_from_pypi_simple_index.py"]
     networks:
       - db_net
       - broker_net
