@@ -42,7 +42,7 @@ services:
         - pypi_scraper/app
     deploy:
       replicas: 1
-    command: ["python", "pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -69,7 +69,7 @@ services:
       dockerfile: app.Dockerfile
       tags:
         - pypi_scraper/app
-    command: ["python", "pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -96,7 +96,7 @@ services:
       dockerfile: app.Dockerfile
       tags:
         - pypi_scraper/app
-    command: ["python", "pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
     networks:
       - db_net
       - broker_net

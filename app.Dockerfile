@@ -9,7 +9,7 @@ WORKDIR /app
 COPY Readme.md pyproject.toml requirements.lock ./
 RUN uv pip install --system -r requirements.lock
 
-ENV PYTHONPATH="/app:${PYTHONPATH}"
-COPY src .
+COPY src src
+RUN uv pip install --system .
 
 USER app_user
