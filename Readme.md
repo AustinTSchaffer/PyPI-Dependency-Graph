@@ -42,31 +42,6 @@ Below is a screenshot of a terminal showing multiple tmux panes, most of them ru
 
 ![](./images/tmux-screenshot.png)
 
-## TODO
-
-- Currently not parsing platform compatibility from filenames.
-  - Have a process for parsing that info from `.gz` and `.whl` filenames.
-  - The file that those methods live in doesn't process `.egg` files.
-- Need to do some analysis to see how much version information changes between different "version metadata"
-- Tons of documentation
-  - Method-level and class-level docstrings
-  - Architecture diagram
-- Unit tests
-
-```py
-# TODO: Persist this somehow.
-# Supports "in" operator. `'3.5.2' in python_version_specs`
-python_version_specs = (
-    packaging.specifiers.SpecifierSet(distribution['requires_python'])
-    if distribution['requires_python'] is not None else
-    None
-)
-
-# TODO: Use this for persisting platform info.
-_, _, _, version_tag_info = packaging.utils.parse_wheel_filename(distribution['filename'])
-# Doesn't support .egg files. Need to figure that out.
-```
-
 ## See Also
 
 - Docs on Pip's solver

@@ -49,7 +49,7 @@ async def main():
 
             processing_prefix = False
             package_names = []
-            async for package_name in pypi.iter_all_package_names():
+            async for package_name in pypi.iter_all_package_names_regex():
                 if prefix_regex.match(package_name):
                     processing_prefix = True
                     package_names.append(package_name)

@@ -3,6 +3,7 @@ import datetime
 import dataclasses
 from typing import Optional, AsyncIterable
 import re
+import warnings
 
 import aiohttp
 import packaging.utils
@@ -16,6 +17,7 @@ POPULAR_PACKAGES_URL = (
     "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json"
 )
 PACKAGE_NAME_REGEX = re.compile(r"/simple/(?P<package_name>[a-z0-9\-_\.]+)", re.I)
+ACCEPT_JSON_HEADER = 'application/vnd.pypi.simple.v1+json'
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +56,17 @@ class PypiApi:
     async def get_package_version_distributions(
         self, package_name: str | models.KnownPackageName
     ) -> PackageVersionDistributionResponse | None:
+        raise NotImplementedError()
+
+    async def get_package_version_distributions_legacy(
+        self, package_name: str | models.KnownPackageName
+    ) -> PackageVersionDistributionResponse | None:
         """
         Returns a dictionary mapping the package's known versions to a list of distributions
         of those versions. Returns a variant of the core model which does not contain DB identifiers.
         """
+
+        logger.warning("get_package_version_distributions_legacy will be deprecated in favor of get_package_version_distributions")
 
         _package_name = (
             package_name if isinstance(package_name, str) else package_name.package_name
@@ -148,11 +157,16 @@ class PypiApi:
         return package_metadata, metadata_file_resp.content_length
 
     async def iter_all_package_names(self) -> AsyncIterable[str]:
+        raise NotImplementedError()
+
+    async def iter_all_package_names_regex(self) -> AsyncIterable[str]:
         """
         Async iterable over all package names from PyPI's "simple" index.
         The package names are assumed to be canonicalized and in
         alphabetical order, though neither is guaranteed.
         """
+
+        logger.warning("iter_all_package_names_regex will be deprecated in favor of iter_all_package_names")
 
         response = await self.session.get(f"{PYPI_HOST}/simple/")
         if not response.ok:

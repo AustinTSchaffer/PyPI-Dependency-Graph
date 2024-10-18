@@ -121,7 +121,7 @@ class KnownPackageProcessingService:
 
         logger.info(f"{package_name} - Getting version/distribution information.")
 
-        package_vers_dists_result = await self.pypi.get_package_version_distributions(
+        package_vers_dists_result = await self.pypi.get_package_version_distributions_legacy(
             package_name
         )
 
