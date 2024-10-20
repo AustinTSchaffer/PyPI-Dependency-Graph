@@ -40,6 +40,12 @@ UPL_LOAD_VERSION_DISTRIBUTIONS = bool(
 )
 
 PACKAGE_RELEASE_TERM_MAX_SIZE = 9_223_372_036_854_775_807  # Postgres bigint max size
+"""
+This is based on Postgres's max value for bigint. There are a few package version
+terms in the quintillions, and around 50 package versions that have a version term
+greater than this. Those 50 versions do not warrant using numeric[] as the data-
+type for package_release.
+"""
 
 POPULAR_PACKAGE_LOADER_COUNT_INSERTED = (
     os.getenv("TOP_8000_LOADER_COUNT_INSERTED", "true").strip().lower() == "true"

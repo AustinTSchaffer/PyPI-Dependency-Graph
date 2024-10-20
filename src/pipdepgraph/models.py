@@ -39,22 +39,45 @@ class KnownPackageName:
 
 @dataclasses.dataclass
 class KnownVersion:
-    known_version_id: Optional[str | uuid.UUID]
+    known_version_id: str | uuid.UUID | None
     package_name: str
     package_version: str
-    package_release: tuple[int, ...] | None
-    package_release_numeric: None | tuple[int, ...]
-    date_discovered: Optional[datetime.datetime]
+    date_discovered: datetime.datetime | None
+
+    epoch: int | None = None
+    package_release: tuple[int, ...] | None = None
+    pre: tuple[str, int] | None = None
+    post: int | None = None
+    dev: int | None = None
+    local: str | None = None
+    is_prerelease: bool | None = None
+    is_postrelease: bool | None = None
+    is_devrelease: bool | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "KnownVersion":
+        if "pre" in data:
+            pre = tuple(data['pre'])
+        elif "pre_0" in data and "pre_1" in data:
+            pre = (data["pre_0"], data["pre_1"])
+        else:
+            pre = None
+
         return cls(
             known_version_id=data.get("known_version_id", None),
             package_name=data.get("package_name", None),
             package_version=data.get("package_version", None),
-            package_release=data.get("package_release", None),
-            package_release_numeric=data.get("package_release_numeric", None),
             date_discovered=data.get("date_discovered", None),
+
+            epoch=data.get("epoch", 0),
+            package_release=data.get("package_release", None),
+            pre=pre,
+            post=data.get("post", None),
+            dev=data.get("dev", None),
+            local=data.get("local", None),
+            is_prerelease=data.get("is_prerelease", None),
+            is_postrelease=data.get("is_postrelease", None),
+            is_devrelease=data.get("is_devrelease", None),
         )
 
 

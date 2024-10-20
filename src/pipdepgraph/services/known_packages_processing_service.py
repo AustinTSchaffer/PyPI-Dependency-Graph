@@ -6,7 +6,8 @@ import packaging.version
 from psycopg_pool import AsyncConnectionPool
 from psycopg.rows import dict_row
 
-from pipdepgraph import models, pypi_api, constants, core
+from pipdepgraph import models, pypi_api, constants
+from pipdepgraph.core import parsing
 from pipdepgraph.repositories import (
     known_package_name_repository,
     known_version_repository,
@@ -138,22 +139,28 @@ class KnownPackageProcessingService:
                 known_version_id=None,
                 package_name=package_name.package_name,
                 package_version=version_string,
-                package_release=None,
-                package_release_numeric=None,
                 date_discovered=None,
             )
             for version_string in package_vers_dists_result.versions.keys()
         ]
 
         for known_version in known_versions:
-            parsed_version = core.parse_version_string(known_version.package_version)
-            if parsed_version.package_release is None and parsed_version.package_release_numeric is None:
+            parsed_version = parsing.parse_version_string(known_version.package_version)
+            if parsed_version is None:
                 logger.warning(
                     f"{package_name.package_name} - Error parsing version {known_version.package_version}.",
                 )
+                continue
 
+            known_version.epoch = parsed_version.epoch
             known_version.package_release = parsed_version.package_release
-            known_version.package_release_numeric = parsed_version.package_release_numeric
+            known_version.pre = parsed_version.pre
+            known_version.post = parsed_version.post
+            known_version.dev = parsed_version.dev
+            known_version.local = parsed_version.local
+            known_version.is_prerelease = parsed_version.is_prerelease
+            known_version.is_postrelease = parsed_version.is_postrelease
+            known_version.is_devrelease = parsed_version.is_devrelease
 
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row

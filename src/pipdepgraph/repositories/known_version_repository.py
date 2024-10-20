@@ -28,20 +28,25 @@ class KnownVersionRepository:
         if not known_versions:
             return None
 
-        PARAMS_PER_INSERT = 5
+        PARAMS_PER_INSERT = 13
         for known_versions in itertools.batched(
             known_versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
         ):
             query = f"""
             INSERT INTO {table_names.KNOWN_VERSIONS}
-            (package_name, package_version, package_release, package_release_numeric, date_discovered)
+            (
+                package_name, package_version, date_discovered,
+                epoch, package_release, pre_0, pre_1, post, dev, "local",
+                is_prerelease, is_postrelease, is_devrelease
+            )
             VALUES
             """
 
             query += ",".join(
-                " ( %s, %s, %s, %s, coalesce(%s, now()) ) "
+                " ( %s, %s, coalesce(%s, now()), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) "
                 for _ in range(len(known_versions))
             )
+
             query += " on conflict do nothing; "
 
             params = [None] * PARAMS_PER_INSERT * len(known_versions)
@@ -49,13 +54,18 @@ class KnownVersionRepository:
             for kv in known_versions:
                 params[offset + 0] = kv.package_name
                 params[offset + 1] = kv.package_version
-                params[offset + 2] = format_pg_integer_array(kv.package_release)
-                params[offset + 3] = (
-                    format_pg_integer_array(kv.package_release_numeric)
-                    if kv.package_release_numeric
-                    else None
-                )
-                params[offset + 4] = kv.date_discovered
+                params[offset + 2] = kv.date_discovered
+                params[offset + 3] = kv.epoch
+                params[offset + 4] = format_pg_integer_array(kv.package_release)
+                params[offset + 5] = kv.pre[0] if kv.pre is not None else None
+                params[offset + 6] = kv.pre[1] if kv.pre is not None else None
+                params[offset + 7] = kv.post
+                params[offset + 8] = kv.dev
+                params[offset + 9] = kv.local
+                params[offset + 10] = kv.is_prerelease
+                params[offset + 11] = kv.is_postrelease
+                params[offset + 12] = kv.is_devrelease
+
                 offset += PARAMS_PER_INSERT
 
             await cursor.execute(query, params)
@@ -85,9 +95,18 @@ class KnownVersionRepository:
         SET
             package_name = %s,
             package_version = %s,
+            date_discovered = %s,
+
+            epoch = %s,
             package_release = %s,
-            package_release_numeric = %s,
-            date_discovered = %s
+            pre_0 = %s,
+            pre_1 = %s,
+            post = %s,
+            dev = %s,
+            "local" = %s,
+            is_prerelease = %s,
+            is_postrelease = %s,
+            is_devrelease = %s
         WHERE
             known_version_id = %s
         ;"""
@@ -95,9 +114,19 @@ class KnownVersionRepository:
         params = (
             known_version.package_name,
             known_version.package_version,
-            format_pg_integer_array(known_version.package_release),
-            format_pg_integer_array(known_version.package_release_numeric),
             known_version.date_discovered,
+
+            known_version.epoch,
+            format_pg_integer_array(known_version.package_release),
+            known_version.pre[0] if known_version.pre else None,
+            known_version.pre[1] if known_version.pre else None,
+            known_version.post,
+            known_version.dev,
+            known_version.local,
+            known_version.is_prerelease,
+            known_version.is_postrelease,
+            known_version.is_devrelease,
+
             known_version.known_version_id,
         )
 
@@ -122,7 +151,6 @@ class KnownVersionRepository:
         package_name: str | None = None,
         package_version: str | None = None,
         has_package_release: bool | None = None,
-        has_package_release_numeric: bool | None = None,
     ) -> AsyncIterable[models.KnownVersion]:
         query = textwrap.dedent(
             f"""
@@ -130,9 +158,17 @@ class KnownVersionRepository:
                     kv.known_version_id,
                     kv.package_name,
                     kv.package_version,
+                    kv.date_discovered,
+                    kv.epoch,
                     kv.package_release,
-                    kv.package_release_numeric,
-                    kv.date_discovered
+                    kv.pre_0,
+                    kv.pre_1,
+                    kv.post,
+                    kv.dev,
+                    kv."local",
+                    kv.is_prerelease,
+                    kv.is_postrelease,
+                    kv.is_devrelease
                 from {table_names.KNOWN_VERSIONS} kv
             """
         )
@@ -172,18 +208,6 @@ class KnownVersionRepository:
             else:
                 query += " kv.package_release = '{}' "
 
-        if has_package_release_numeric is not None:
-            if not has_where:
-                query += " where "
-                has_where = True
-            else:
-                query += " and "
-
-            if has_package_release_numeric:
-                query += " kv.package_release_numeric is not null "
-            else:
-                query += " kv.package_release_numeric is null "
-
         await cursor.execute(query, params)
         async for record in cursor:
             yield models.KnownVersion.from_dict(record)
@@ -195,13 +219,11 @@ class KnownVersionRepository:
         package_name: str | None = None,
         package_version: str | None = None,
         has_package_release: bool | None = None,
-        has_package_release_numeric: bool | None = None,
     ) -> AsyncIterable[models.KnownVersion]:
         kwargs = dict(
             package_name=package_name,
             package_version=package_version,
             has_package_release=has_package_release,
-            has_package_release_numeric=has_package_release_numeric,
         )
 
         if cursor:
