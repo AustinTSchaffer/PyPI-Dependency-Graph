@@ -48,7 +48,7 @@ class KnownVersionRepository:
             )
 
             query += """
-            on conflict do update set
+            on conflict (package_name, package_version) do update set
                 epoch = EXCLUDED.epoch,
                 package_release = EXCLUDED.package_release,
                 pre_0 = EXCLUDED.pre_0,
