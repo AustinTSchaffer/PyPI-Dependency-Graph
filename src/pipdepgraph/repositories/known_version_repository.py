@@ -47,7 +47,19 @@ class KnownVersionRepository:
                 for _ in range(len(known_versions))
             )
 
-            query += " on conflict do nothing; "
+            query += """
+            on conflict do update set
+                epoch = EXCLUDED.epoch,
+                package_release = EXCLUDED.package_release,
+                pre_0 = EXCLUDED.pre_0,
+                pre_1 = EXCLUDED.pre_1,
+                post = EXCLUDED.post,
+                dev = EXCLUDED.dev,
+                "local" = EXCLUDED."local",
+                is_prerelease = EXCLUDED.is_prerelease,
+                is_postrelease = EXCLUDED.is_postrelease,
+                is_devrelease = EXCLUDED.is_devrelease
+            ;"""
 
             params = [None] * PARAMS_PER_INSERT * len(known_versions)
             offset = 0
