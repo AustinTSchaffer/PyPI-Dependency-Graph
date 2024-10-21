@@ -10,12 +10,18 @@ from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
 
 
-def format_pg_integer_array(array: tuple[int, ...]) -> str:
+def format_pg_integer_array(array: tuple[int | None, ...]) -> str:
     """
     Formats a postgres-compatible array of bigints. If empty array or None, returns
     `"{}"`.
     """
-    return "{" + ",".join(map(str, array)) + "}"
+
+    vals = [
+        "null" if val is None else str(val)
+        for val in array
+    ]
+
+    return "{" + ",".join(vals) + "}"
 
 
 class KnownVersionRepository:
