@@ -25,10 +25,9 @@ def parse_version_string(version_string: str) -> ParsedVersion | None:
     """
     Parses a version string, extracting the version's "release" information.
 
-    If any of the terms of the package release are greater than
-    `constants.PACKAGE_RELEASE_TERM_MAX_SIZE`, the `package_release` property
-    will be set to None. There are currently (October 2024) only 52 package
-    versions that would benefit from a `package_release_numeric` property.
+    If any of the terms of the parsed version are greater than
+    `constants.PACKAGE_RELEASE_TERM_MAX_SIZE`, the respective property
+    will be set to None.
     """
 
     try:
@@ -36,18 +35,18 @@ def parse_version_string(version_string: str) -> ParsedVersion | None:
     except:
         return None
 
-    postgres_bigint_compatible = True
+    release_is_bigint_compatible = True
     for release_term in parsed_version.release:
         if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
-            postgres_bigint_compatible = False
+            release_is_bigint_compatible = False
             break
 
     return ParsedVersion(
-        epoch=parsed_version.epoch,
-        package_release=parsed_version.release if postgres_bigint_compatible else None,
-        pre=parsed_version.pre,
-        post=parsed_version.post,
-        dev=parsed_version.dev,
+        epoch=parsed_version.epoch if parsed_version.epoch <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
+        package_release=parsed_version.release if release_is_bigint_compatible else None,
+        pre=parsed_version.pre if parsed_version.pre[1] <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
+        post=parsed_version.post if parsed_version.post <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
+        dev=parsed_version.dev if parsed_version.dev <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
         local=parsed_version.local,
         is_devrelease=parsed_version.is_devrelease,
         is_prerelease=parsed_version.is_prerelease,
