@@ -11,8 +11,8 @@ from pipdepgraph import constants
 @dataclass(frozen=False)
 class ParsedVersion:
     epoch: int
-    package_release: tuple[int, ...] | None
-    pre: tuple[str, int] | None
+    package_release: tuple[int | None, ...]
+    pre: tuple[str, int | None] | None
     post: int | None
     dev: int | None
     local: str | None
@@ -35,18 +35,32 @@ def parse_version_string(version_string: str) -> ParsedVersion | None:
     except:
         return None
 
-    release_is_bigint_compatible = True
-    for release_term in parsed_version.release:
-        if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
-            release_is_bigint_compatible = False
-            break
+    def bigint_protection(val: int | None) -> int | None:
+        if val is None:
+            return None
+        if val <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
+            return val
+        if (-val) < constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
+            return val
+        return None
+
+    package_release = tuple(
+        [bigint_protection(term) for term in parsed_version.release]
+    )
+
+    pre: tuple[str, int | None] | None = None
+    if parsed_version.pre is not None:
+        pre = (
+            parsed_version.pre[0],
+            bigint_protection(parsed_version.pre[1]),
+        )
 
     return ParsedVersion(
-        epoch=parsed_version.epoch if parsed_version.epoch <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
-        package_release=parsed_version.release if release_is_bigint_compatible else None,
-        pre=parsed_version.pre if parsed_version.pre[1] <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
-        post=parsed_version.post if parsed_version.post <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
-        dev=parsed_version.dev if parsed_version.dev <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE else None,
+        epoch=bigint_protection(parsed_version.epoch),
+        package_release=package_release,
+        pre=pre,
+        post=bigint_protection(parsed_version.post),
+        dev=bigint_protection(parsed_version.dev),
         local=parsed_version.local,
         is_devrelease=parsed_version.is_devrelease,
         is_prerelease=parsed_version.is_prerelease,
