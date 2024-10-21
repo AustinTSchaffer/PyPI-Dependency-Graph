@@ -40,7 +40,7 @@ def parse_version_string(version_string: str) -> ParsedVersion | None:
             return None
         if val <= constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
             return val
-        if (-val) < constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
+        if val < 0 and val > -constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
             return val
         return None
 
