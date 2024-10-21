@@ -10,12 +10,12 @@ from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
 
 
-def format_pg_integer_array(array: tuple[int, ...] | None) -> str:
+def format_pg_integer_array(array: tuple[int, ...]) -> str:
     """
     Formats a postgres-compatible array of bigints. If empty array or None, returns
     `"{}"`.
     """
-    return "{" + ",".join(map(str, array or [])) + "}"
+    return "{" + ",".join(map(str, array)) + "}"
 
 
 class KnownVersionRepository:
@@ -68,7 +68,11 @@ class KnownVersionRepository:
                 params[offset + 1] = kv.package_version
                 params[offset + 2] = kv.date_discovered
                 params[offset + 3] = kv.epoch
-                params[offset + 4] = format_pg_integer_array(kv.package_release)
+                params[offset + 4] = (
+                    format_pg_integer_array(kv.package_release)
+                    if kv.package_release is not None
+                    else None
+                )
                 params[offset + 5] = kv.pre[0] if kv.pre is not None else None
                 params[offset + 6] = kv.pre[1] if kv.pre is not None else None
                 params[offset + 7] = kv.post
@@ -127,9 +131,12 @@ class KnownVersionRepository:
             known_version.package_name,
             known_version.package_version,
             known_version.date_discovered,
-
             known_version.epoch,
-            format_pg_integer_array(known_version.package_release),
+            (
+                format_pg_integer_array(known_version.package_release)
+                if known_version.package_release is not None
+                else None
+            ),
             known_version.pre[0] if known_version.pre else None,
             known_version.pre[1] if known_version.pre else None,
             known_version.post,
@@ -138,7 +145,6 @@ class KnownVersionRepository:
             known_version.is_prerelease,
             known_version.is_postrelease,
             known_version.is_devrelease,
-
             known_version.known_version_id,
         )
 
