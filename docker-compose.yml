@@ -41,8 +41,8 @@ services:
       tags:
         - pypi_scraper/app
     deploy:
-      replicas: 1
-    command: ["python", "src/pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
+      replicas: 3
+    command: ["python", "src/pipdepgraph/entrypoints/process_package_names_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -60,16 +60,16 @@ services:
       - db
       - broker
 
-  version_distribution_processor:
+  distribution_processor:
     restart: always
     deploy:
-      replicas: 1
+      replicas: 10
     build:
       context: .
       dockerfile: app.Dockerfile
       tags:
         - pypi_scraper/app
-    command: ["python", "src/pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_distributions_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -83,6 +83,8 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
+
+      DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES: "true"
     depends_on:
       - db
       - broker
@@ -111,7 +113,7 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
 
-      UPL_LOAD_VERSION_DISTRIBUTIONS: "false"
+      UPL_LOAD_DISTRIBUTIONS: "true"
       UPL_LOAD_PACKAGE_NAMES: "true"
     depends_on:
       - db

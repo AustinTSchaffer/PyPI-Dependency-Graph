@@ -53,20 +53,16 @@ class PypiApi:
     def __init__(self, session: aiohttp.ClientSession):
         self.session = session
 
-    async def get_package_version_distributions(
-        self, package_name: str | models.KnownPackageName
-    ) -> PackageVersionDistributionResponse | None:
-        raise NotImplementedError()
-
-    async def get_package_version_distributions_legacy(
-        self, package_name: str | models.KnownPackageName
+    async def get_package_distributions_legacy(
+        self, package_name: str | models.PackageName
     ) -> PackageVersionDistributionResponse | None:
         """
-        Returns a dictionary mapping the package's known versions to a list of distributions
-        of those versions. Returns a variant of the core model which does not contain DB identifiers.
-        """
+        Returns a dictionary mapping the package's versions to a list of distributions
+        of those versions. Returns a variant of the core model which does not contain DB
+        identifiers.
 
-        logger.warning("get_package_version_distributions_legacy will be deprecated in favor of get_package_version_distributions")
+        Uses the "legacy JSON API": https://pypi.org/pypi/{package}/json
+        """
 
         _package_name = (
             package_name if isinstance(package_name, str) else package_name.package_name
@@ -120,7 +116,7 @@ class PypiApi:
     async def get_distribution_metadata(
         self,
         distribution: (
-            models.VersionDistribution
+            models.Distribution
             | PackageVersionDistributionResponse.VersionDistribution
         ),
     ) -> tuple[packaging.metadata.Metadata, int]:

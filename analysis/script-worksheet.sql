@@ -7,13 +7,13 @@
 select
 	package_type,
 	count(*)
-from version_distributions
+from distributions
 group by package_type
 order by count(*) desc;
 
 select package_type, count(*)
-from version_distributions vd
-join direct_dependencies dd on dd.version_distribution_id = vd.version_distribution_id
+from distributions vd
+join requirements dd on dd.distribution_id = vd.distribution_id
 group by package_type;
 
 --
@@ -22,7 +22,7 @@ group by package_type;
 select
 	extras,
 	count(*) c
-from direct_dependencies
+from requirements
 group by extras
 order by c desc;
 
@@ -31,16 +31,16 @@ order by c desc;
 --
 -- Packages without any versions.
 --
-select count(*) over(), * from known_package_names kpn
-left join known_versions kv on kv.package_name = kpn.package_name
-where kv.known_version_id is null;
+select count(*) over(), * from package_names kpn
+left join versions kv on kv.package_name = kpn.package_name
+where kv.version_id is null;
 
--- delete from known_package_names kpn where
+-- delete from package_names kpn where
 -- kpn.package_name != lower(regexp_replace(kpn.package_name, '[-_\.]+', '-', 'g'));
 
 
 
-select count(*) from pypi_packages.version_distributions vd where vd.processed = false;
+select count(*) from pypi_packages.distributions vd where vd.processed = false;
 
 
 
@@ -58,18 +58,18 @@ select
 	dd.dependency_extras,
 	dd.version_constraint,
 	vd.package_filename
-from pypi_packages.direct_dependencies dd
-join pypi_packages.version_distributions vd on vd.version_distribution_id = dd.version_distribution_id
-join pypi_packages.known_versions kv on vd.known_version_id = kv.known_version_id
+from pypi_packages.requirements dd
+join pypi_packages.distributions vd on vd.distribution_id = dd.distribution_id
+join pypi_packages.versions kv on vd.version_id = kv.version_id
 where dd.dependency_name = 'botocore';
 
 --
 -- Deps of boto3 version 1.2.3
 --
 select kv.*, vd.*, dd.*
-from known_versions kv
-left join version_distributions vd on vd.known_version_id = kv.known_version_id
-left join direct_dependencies dd on dd.version_distribution_id = vd.version_distribution_id
+from versions kv
+left join distributions vd on vd.version_id = kv.version_id
+left join requirements dd on dd.distribution_id = vd.distribution_id
 where
 	dd.extras is not null
 	and dd.extras like '%extra%' and dd.extras like '% or %'
@@ -85,7 +85,7 @@ where
 --		select
 --			*,
 --			rank() OVER (PARTITION BY package_name ORDER BY upload_time DESC) as r
---		from known_versions kv
+--		from versions kv
 --	) subq
 --	where subq.r = 1
 --),
@@ -102,25 +102,25 @@ where
 --	dd_l5.dependency_name dep_name_l5 ,
 --	dd_l6.dependency_name dep_name_l6 --,
 --	--dd_l7.dependency_name dep_name_l7
---from direct_dependencies dd_l1
---join boto3version b3v on b3v.known_version_id = dd_l1.known_version_id
+--from requirements dd_l1
+--join boto3version b3v on b3v.version_id = dd_l1.version_id
 --left join latest_versions lv_l1 on lv_l1.package_name = dd_l1.dependency_name
---left join direct_dependencies dd_l2 on lv_l1.known_version_id = dd_l2.known_version_id
+--left join requirements dd_l2 on lv_l1.version_id = dd_l2.version_id
 --left join latest_versions lv_l2 on lv_l2.package_name = dd_l2.dependency_name
---left join direct_dependencies dd_l3 on lv_l2.known_version_id = dd_l3.known_version_id
+--left join requirements dd_l3 on lv_l2.version_id = dd_l3.version_id
 --left join latest_versions lv_l3 on lv_l3.package_name = dd_l3.dependency_name
---left join direct_dependencies dd_l4 on lv_l3.known_version_id = dd_l4.known_version_id
+--left join requirements dd_l4 on lv_l3.version_id = dd_l4.version_id
 --left join latest_versions lv_l4 on lv_l4.package_name = dd_l4.dependency_name
---left join direct_dependencies dd_l5 on lv_l4.known_version_id = dd_l5.known_version_id
+--left join requirements dd_l5 on lv_l4.version_id = dd_l5.version_id
 --left join latest_versions lv_l5 on lv_l5.package_name = dd_l5.dependency_name
---left join direct_dependencies dd_l6 on lv_l5.known_version_id = dd_l6.known_version_id
+--left join requirements dd_l6 on lv_l5.version_id = dd_l6.version_id
 ----left join latest_versions lv_l6 on lv_l6.package_name = dd_l6.dependency_name
-----left join direct_dependencies dd_l7 on lv_l6.known_version_id = dd_l7.known_version_id
+----left join requirements dd_l7 on lv_l6.version_id = dd_l7.version_id
 --order by package_name, dep_name_l1, dep_name_l2, dep_name_l3, dep_name_l4, dep_name_l5, dep_name_l6 --, dep_name_l7
 
 -- DANGER
--- delete from known_package_names where package_name != 'boto3';
--- update known_package_names set date_last_checked = now() - interval '5 min';
+-- delete from package_names where package_name != 'boto3';
+-- update package_names set date_last_checked = now() - interval '5 min';
 
   SELECT blocked_locks.pid     AS blocked_pid,
          blocked_activity.usename  AS blocked_user,

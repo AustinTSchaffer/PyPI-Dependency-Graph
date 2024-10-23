@@ -13,8 +13,8 @@ from pipdepgraph import constants
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
-    known_package_name_repository,
-    version_distribution_repository,
+    distributions_repository,
+    package_names_repository,
 )
 
 from pipdepgraph.services import (
@@ -27,14 +27,14 @@ logger = logging.getLogger("pipdepgraph.entrypoints.unprocessed_record_loader_rm
 async def main():
     """
     Loads unprocessed version distributions from the database into RabbitMQ.
-    Loads all known package names into RabbitMQ.
+    Loads all package names into RabbitMQ.
     """
 
     logger.info("Initializing DB pool")
     async with (common.initialize_async_connection_pool() as db_pool,):
         logger.info("Initializing repositories")
-        kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
-        vdr = version_distribution_repository.VersionDistributionRepository(db_pool)
+        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        dr = distributions_repository.DistributionsRepository(db_pool)
 
         logger.info("Initializing RabbitMQ session")
         with (
@@ -46,22 +46,22 @@ async def main():
 
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
-            if constants.UPL_LOAD_VERSION_DISTRIBUTIONS:
+            if constants.UPL_LOAD_DISTRIBUTIONS:
                 logger.info(
                     "Loading all unprocessed version distributions into RabbitMQ"
                 )
-                async for vd in vdr.iter_version_distributions(processed=False):
+                async for vd in dr.iter_distributions(processed=False):
                     logger.debug(
                         "Loading unprocessed version distribution: %s",
-                        vd.version_distribution_id,
+                        vd.distribution_id,
                     )
-                    rmq_pub.publish_version_distribution(vd, channel=channel)
+                    rmq_pub.publish_distribution(vd, channel=channel)
 
             if constants.UPL_LOAD_PACKAGE_NAMES:
-                logger.info("Loading all known package names into RabbitMQ")
-                async for kpn in kpnr.iter_known_package_names():
-                    logger.debug("Loading KnownPackageName: %s", kpn.package_name)
-                    rmq_pub.publish_known_package_name(kpn, channel=channel)
+                logger.info("Loading all package names into RabbitMQ")
+                async for kpn in pnr.iter_package_names():
+                    logger.debug("Loading Package Name: %s", kpn.package_name)
+                    rmq_pub.publish_package_name(kpn, channel=channel)
 
 
 if __name__ == "__main__":

@@ -16,17 +16,17 @@ from pipdepgraph import constants, models, pypi_api
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
-    known_package_name_repository,
-    known_version_repository,
-    version_distribution_repository,
+    distributions_repository,
+    package_names_repository,
+    versions_repository,
 )
 
 from pipdepgraph.services import (
-    known_packages_processing_service,
+    package_name_processing_service,
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.process_one_known_package_name")
+logger = logging.getLogger("pipdepgraph.entrypoints.process_one_package_name")
 
 
 async def main():
@@ -36,9 +36,9 @@ async def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
-        kvr = known_version_repository.KnownVersionRepository(db_pool)
-        vdr = version_distribution_repository.VersionDistributionRepository(db_pool)
+        kpnr = package_names_repository.PackageNamesRepository(db_pool)
+        kvr = versions_repository.VersionsRepository(db_pool)
+        vdr = distributions_repository.DistributionsRepository(db_pool)
 
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
@@ -49,9 +49,9 @@ async def main():
         )
 
         logger.info(
-            "Initializing known_packages_processing_service.KnownPackageProcessingService"
+            "Initializing package_name_processing_service.PackageNameProcessingService"
         )
-        kpps = known_packages_processing_service.KnownPackageProcessingService(
+        pnps = package_name_processing_service.PackageNameProcessingService(
             kpnr=kpnr,
             kvr=kvr,
             vdr=vdr,
@@ -61,16 +61,16 @@ async def main():
         )
 
         logger.info("Running.")
-        known_package_name = os.getenv("KNOWN_PACKAGE_NAME", "ardianmaliqaj")
+        package_name = os.getenv("PACKAGE_NAME", "ardianmaliqaj")
 
         try:
-            await kpps.process_package_name(
-                known_package_name, ignore_date_last_checked=True
+            await pnps.process_package_name(
+                package_name, ignore_date_last_checked=True
             )
 
         except Exception as ex:
             logger.error(
-                f"Error while handling Known Package Name: {known_package_name}",
+                f"Error while handling Package Name: {package_name}",
                 exc_info=ex,
             )
             raise

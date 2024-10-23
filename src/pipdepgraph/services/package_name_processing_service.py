@@ -9,9 +9,9 @@ from psycopg.rows import dict_row
 from pipdepgraph import models, pypi_api, constants
 from pipdepgraph.core import parsing
 from pipdepgraph.repositories import (
-    known_package_name_repository,
-    known_version_repository,
-    version_distribution_repository,
+    distributions_repository,
+    package_names_repository,
+    versions_repository,
 )
 
 from pipdepgraph.services import (
@@ -20,28 +20,28 @@ from pipdepgraph.services import (
 
 RECHECK_PACKAGE_NAME_INTERVAL = datetime.timedelta(hours=1)
 """
-The interval that this module uses to determine if a `known_package_name`
+The interval that this module uses to determine if a `package_name`
 has been processed recently.
 """
 
 logger = logging.getLogger(__name__)
 
 
-class KnownPackageProcessingService:
+class PackageNameProcessingService:
     def __init__(
         self,
         *,
         db_pool: AsyncConnectionPool,
-        kpnr: known_package_name_repository.KnownPackageNameRepository,
-        kvr: known_version_repository.KnownVersionRepository,
-        vdr: version_distribution_repository.VersionDistributionRepository,
+        kpnr: package_names_repository.PackageNamesRepository,
+        kvr: versions_repository.VersionsRepository,
+        vdr: distributions_repository.DistributionsRepository,
         pypi: pypi_api.PypiApi,
         rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None,
     ):
         self.db_pool = db_pool
-        self.known_package_names_repo = kpnr
-        self.known_versions_repo = kvr
-        self.version_distributions_repo = vdr
+        self.package_names_repo = kpnr
+        self.versions_repo = kvr
+        self.distributions_repo = vdr
         self.pypi = pypi
         self.rabbitmq_publish_service = rmq_pub
 
@@ -49,19 +49,19 @@ class KnownPackageProcessingService:
         self,
     ):
         """
-        Propagates discovered package names from `direct_dependencies` back to `known_package_names`.
+        Propagates discovered package names from `requirements` back to `package_names`.
         """
 
         logger.info(
-            "Propagating package names from direct_dependencies back to known_package_names."
+            "Propagating package names from requirements back to package_names."
         )
-        await self.known_package_names_repo.propagate_dependency_names()
+        await self.package_names_repo.propagate_dependency_names()
 
     async def run_from_database(self):
         """
-        Runs through all known package names from the database and processes each one.
+        Runs through all package names from the database and processes each one.
         """
-        async for package in self.known_package_names_repo.iter_known_package_names(
+        async for package in self.package_names_repo.iter_package_names(
             date_last_checked_before=datetime.datetime.now()
             - RECHECK_PACKAGE_NAME_INTERVAL
         ):
@@ -69,17 +69,17 @@ class KnownPackageProcessingService:
 
     async def process_package_name(
         self,
-        package_name: str | models.KnownPackageName,
+        package_name: str | models.PackageName,
         ignore_date_last_checked: bool = False,
     ):
         """
         Processes a single package name.
 
-        - inserts/retrieves the package into/from `known_package_names` to ensure that it exists.
+        - inserts/retrieves the package into/from `package_names` to ensure that it exists.
         - fetches the package's info from the PyPI API
-        - inserts the package's versions into `known_versions`
-        - inserts the package's distributions into `version_distributions`
-        - updates the `date_last_checked` field on the `known_package_name` record
+        - inserts the package's versions into `versions`
+        - inserts the package's distributions into `distributions`
+        - updates the `date_last_checked` field on the `package_name` record
 
         `ignore_date_last_checked` can be used to force this method to process packages that
         have been processed recently.
@@ -87,15 +87,15 @@ class KnownPackageProcessingService:
 
         logger.info(f"Processing package name: {package_name}")
 
-        _package_name = await self.known_package_names_repo.get_known_package_name(
+        _package_name = await self.package_names_repo.get_package_name(
             package_name
         )
 
         if not _package_name:
-            await self.known_package_names_repo.insert_known_package_names(
+            await self.package_names_repo.insert_package_names(
                 [package_name]
             )
-            _package_name = await self.known_package_names_repo.get_known_package_name(
+            _package_name = await self.package_names_repo.get_package_name(
                 package_name
             )
 
@@ -122,21 +122,21 @@ class KnownPackageProcessingService:
 
         logger.info(f"{package_name} - Getting version/distribution information.")
 
-        package_vers_dists_result = await self.pypi.get_package_version_distributions_legacy(
+        package_vers_dists_result = await self.pypi.get_package_distributions_legacy(
             package_name
         )
 
         if not package_vers_dists_result:
             logger.debug(f"{package_name} - Marking package checked.")
             package_name.date_last_checked = now
-            await self.known_package_names_repo.update_known_package_names(
+            await self.package_names_repo.update_package_names(
                 [package_name]
             )
             return
 
-        known_versions: list[models.KnownVersion] = [
-            models.KnownVersion(
-                known_version_id=None,
+        versions: list[models.Version] = [
+            models.Version(
+                version_id=None,
                 package_name=package_name.package_name,
                 package_version=version_string,
                 date_discovered=None,
@@ -144,46 +144,46 @@ class KnownPackageProcessingService:
             for version_string in package_vers_dists_result.versions.keys()
         ]
 
-        for known_version in known_versions:
-            parsed_version = parsing.parse_version_string(known_version.package_version)
+        for version in versions:
+            parsed_version = parsing.parse_version_string(version.package_version)
             if parsed_version is None:
                 logger.warning(
-                    f"{package_name.package_name} - Error parsing version {known_version.package_version}.",
+                    f"{package_name.package_name} - Error parsing version {version.package_version}.",
                 )
                 continue
 
-            known_version.epoch = parsed_version.epoch
-            known_version.package_release = parsed_version.package_release
-            known_version.pre = parsed_version.pre
-            known_version.post = parsed_version.post
-            known_version.dev = parsed_version.dev
-            known_version.local = parsed_version.local
-            known_version.is_prerelease = parsed_version.is_prerelease
-            known_version.is_postrelease = parsed_version.is_postrelease
-            known_version.is_devrelease = parsed_version.is_devrelease
+            version.epoch = parsed_version.epoch
+            version.package_release = parsed_version.package_release
+            version.pre = parsed_version.pre
+            version.post = parsed_version.post
+            version.dev = parsed_version.dev
+            version.local = parsed_version.local
+            version.is_prerelease = parsed_version.is_prerelease
+            version.is_postrelease = parsed_version.is_postrelease
+            version.is_devrelease = parsed_version.is_devrelease
 
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
             try:
                 logger.debug(f"{package_name} - Saving version information.")
-                await self.known_versions_repo.insert_known_versions(
-                    known_versions, cursor=cursor
+                await self.versions_repo.insert_versions(
+                    versions, cursor=cursor
                 )
 
-                logger.debug(f"{package_name} - Building known_version_id map.")
-                known_version_id_map = {
-                    known_version.package_version: known_version.known_version_id
-                    async for known_version in self.known_versions_repo.iter_known_versions(
+                logger.debug(f"{package_name} - Building version_id map.")
+                version_id_map = {
+                    version.package_version: version.version_id
+                    async for version in self.versions_repo.iter_versions(
                         package_name=package_name.package_name,
                         cursor=cursor,
                     )
                 }
 
-                version_distributions: list[models.VersionDistribution] = [
-                    models.VersionDistribution(
-                        version_distribution_id=None,
-                        known_version_id=known_version_id_map[version],
+                distributions: list[models.Distribution] = [
+                    models.Distribution(
+                        distribution_id=None,
+                        version_id=version_id_map[version],
                         metadata_file_size=None,
                         processed=False,
                         python_version=distribution.python_version,
@@ -200,8 +200,8 @@ class KnownPackageProcessingService:
 
                 logger.debug(f"{package_name} - Saving distribution information.")
                 result = (
-                    await self.version_distributions_repo.insert_version_distributions(
-                        version_distributions,
+                    await self.distributions_repo.insert_distributions(
+                        distributions,
                         return_inserted=(self.rabbitmq_publish_service is not None),
                         cursor=cursor,
                     )
@@ -209,13 +209,13 @@ class KnownPackageProcessingService:
 
                 if self.rabbitmq_publish_service is not None and result:
                     logger.debug(
-                        f"{package_name} - Publishing new version distributions to RabbitMQ."
+                        f"{package_name} - Publishing new distributions to RabbitMQ."
                     )
-                    self.rabbitmq_publish_service.publish_version_distributions(result)
+                    self.rabbitmq_publish_service.publish_distributions(result)
 
                 logger.debug(f"{package_name} - Marking package checked.")
                 package_name.date_last_checked = now
-                await self.known_package_names_repo.update_known_package_names(
+                await self.package_names_repo.update_package_names(
                     [package_name], cursor=cursor
                 )
 

@@ -9,7 +9,7 @@ from pipdepgraph import pypi_api, constants
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
-    known_package_name_repository,
+    package_names_repository,
 )
 
 from pipdepgraph.services import (
@@ -26,7 +26,7 @@ async def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
+        kpnr = package_names_repository.PackageNamesRepository(db_pool)
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing RabbitMQ session")
@@ -57,7 +57,7 @@ async def main():
                     break
 
             logger.info(f"Inserting {len(package_names)} package names into Postgres")
-            packages_inserted = await kpnr.insert_known_package_names(
+            packages_inserted = await kpnr.insert_package_names(
                 package_names,
                 return_inserted=constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED,
             )
@@ -69,11 +69,11 @@ async def main():
                         f"Publishing {len(packages_inserted)} new packages to RabbitMQ"
                     )
                     for new_package in packages_inserted:
-                        rmq_pub.publish_known_package_name(new_package, channel=channel)
+                        rmq_pub.publish_package_name(new_package, channel=channel)
 
             logger.info(f"Publishing {len(package_names)} package names to RabbitMQ")
             for package_name in package_names:
-                rmq_pub.publish_known_package_name(package_name, channel=channel)
+                rmq_pub.publish_package_name(package_name, channel=channel)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ import pika.adapters.blocking_connection
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
-    known_package_name_repository,
+    package_names_repository,
 )
 
 from pipdepgraph.services import (
@@ -24,7 +24,7 @@ async def main():
         common.initialize_client_session() as client,
     ):
         logger.info("Initializing repositories")
-        kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
+        kpnr = package_names_repository.PackageNamesRepository(db_pool)
 
         logger.info("Initializing RabbitMQ session")
         with (
@@ -46,10 +46,10 @@ async def main():
             package_list = await result.json()
             package_names = [row["project"] for row in package_list["rows"]]
 
-            await kpnr.insert_known_package_names(package_names)
+            await kpnr.insert_package_names(package_names)
 
             for package_name in package_names:
-                rmq_pub.publish_known_package_name(package_name, channel=channel)
+                rmq_pub.publish_package_name(package_name, channel=channel)
 
 
 if __name__ == "__main__":

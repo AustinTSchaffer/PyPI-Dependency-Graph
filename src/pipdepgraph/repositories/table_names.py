@@ -1,4 +1,4 @@
-VERSION_DISTRIBUTIONS = "pypi_packages.version_distributions"
-KNOWN_VERSIONS = "pypi_packages.known_versions"
-KNOWN_PACKAGE_NAMES = "pypi_packages.known_package_names"
-DIRECT_DEPENDENCIES = "pypi_packages.direct_dependencies"
+PACKAGE_NAMES = "pypi_packages.package_names"
+VERSIONS = "pypi_packages.versions"
+DISTRIBUTIONS = "pypi_packages.distributions"
+REQUIREMENTS = "pypi_packages.requirements"

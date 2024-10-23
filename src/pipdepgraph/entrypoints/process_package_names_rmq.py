@@ -16,17 +16,17 @@ from pipdepgraph import constants, models, pypi_api
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
-    known_package_name_repository,
-    known_version_repository,
-    version_distribution_repository,
+    distributions_repository,
+    package_names_repository,
+    versions_repository,
 )
 
 from pipdepgraph.services import (
-    known_packages_processing_service,
+    package_name_processing_service,
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.process_known_package_names_rmq")
+logger = logging.getLogger("pipdepgraph.entrypoints.process_package_names_rmq")
 
 
 async def main():
@@ -36,9 +36,9 @@ async def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
-        kvr = known_version_repository.KnownVersionRepository(db_pool)
-        vdr = version_distribution_repository.VersionDistributionRepository(db_pool)
+        kpnr = package_names_repository.PackageNamesRepository(db_pool)
+        kvr = versions_repository.VersionsRepository(db_pool)
+        vdr = distributions_repository.DistributionsRepository(db_pool)
 
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
@@ -49,9 +49,9 @@ async def main():
         )
 
         logger.info(
-            "Initializing known_packages_processing_service.KnownPackageProcessingService"
+            "Initializing package_name_processing_service.PackageNameProcessingService"
         )
-        kpps = known_packages_processing_service.KnownPackageProcessingService(
+        pnps = package_name_processing_service.PackageNameProcessingService(
             kpnr=kpnr,
             kvr=kvr,
             vdr=vdr,
@@ -62,25 +62,25 @@ async def main():
 
         logger.info("Starting RabbitMQ consumer thread")
 
-        known_package_names_queue: queue.Queue[models.KnownPackageName | str] = (
+        package_names_queue: queue.Queue[models.PackageName | str] = (
             queue.Queue()
         )
         ack_queue: queue.Queue[bool] = queue.Queue()
         consume_from_rabbitmq_thread = threading.Thread(
             target=consume_from_rabbitmq_target,
-            args=[known_package_names_queue, ack_queue],
+            args=[package_names_queue, ack_queue],
         )
 
         consume_from_rabbitmq_thread.start()
 
         logger.info("Running.")
         while True:
-            known_package_name = None
+            package_name = None
 
             try:
-                known_package_name = known_package_names_queue.get(timeout=5.0)
-                await kpps.process_package_name(
-                    known_package_name, ignore_date_last_checked=True
+                package_name = package_names_queue.get(timeout=5.0)
+                await pnps.process_package_name(
+                    package_name, ignore_date_last_checked=True
                 )
                 ack_queue.put(True)
 
@@ -91,7 +91,7 @@ async def main():
 
             except Exception as ex:
                 logger.error(
-                    f"Error while handling Known Package Name message: {known_package_name}",
+                    f"Error while handling Package Name message: {package_name}",
                     exc_info=ex,
                 )
                 ack_queue.put(False)
@@ -99,11 +99,11 @@ async def main():
 
 
 def consume_from_rabbitmq_target(
-    known_package_names_queue: queue.Queue[models.KnownPackageName | str],
+    package_names_queue: queue.Queue[models.PackageName | str],
     ack_queue: queue.Queue[bool],
 ):
     """
-    Consumes KnownPackageName record from RabbitMQ, placing it into the `out_queue`.
+    Consumes PackageName records from RabbitMQ, placing it into the `out_queue`.
     Expects a response on the `in_queue` containing a single flag indicating whether
     the message should be acked or nacked.
     """
@@ -114,9 +114,9 @@ def consume_from_rabbitmq_target(
     ):
         channel: pika.adapters.blocking_connection.BlockingChannel
         common.declare_rabbitmq_infrastructure(channel)
-        channel.basic_qos(prefetch_count=constants.RABBITMQ_KPN_SUB_PREFETCH)
+        channel.basic_qos(prefetch_count=constants.RABBITMQ_NAMES_SUB_PREFETCH)
 
-        def _known_package_name_consumer(
+        def _package_name_consumer(
             ch: pika.channel.Channel,
             basic_deliver: pika.spec.Basic.Deliver,
             properties: pika.spec.BasicProperties,
@@ -125,10 +125,10 @@ def consume_from_rabbitmq_target(
             try:
                 package_name_json = json.loads(body)
                 if isinstance(package_name_json, str):
-                    known_package_names_queue.put(package_name_json)
+                    package_names_queue.put(package_name_json)
                 else:
-                    package_name = models.KnownPackageName.from_dict(package_name_json)
-                    known_package_names_queue.put(package_name)
+                    package_name = models.PackageName.from_dict(package_name_json)
+                    package_names_queue.put(package_name)
 
                 ack = ack_queue.get()
 
@@ -140,7 +140,7 @@ def consume_from_rabbitmq_target(
 
             except Exception as ex:
                 logger.error(
-                    f"Error while handling Known Package Name message: {basic_deliver}",
+                    f"Error while handling Package Name message: {basic_deliver}",
                     exc_info=ex,
                 )
                 ch.basic_nack(basic_deliver.delivery_tag)
@@ -153,8 +153,8 @@ def consume_from_rabbitmq_target(
             logger.info("Starting RabbitMQ consumer with ctag: %s", consumer_tag)
 
         channel.basic_consume(
-            queue=constants.RABBITMQ_KPN_QNAME,
-            on_message_callback=_known_package_name_consumer,
+            queue=constants.RABBITMQ_NAMES_QNAME,
+            on_message_callback=_package_name_consumer,
             consumer_tag=consumer_tag,
             auto_ack=False,
         )

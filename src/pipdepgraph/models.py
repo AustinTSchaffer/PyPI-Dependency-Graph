@@ -6,13 +6,13 @@ import json
 
 
 @dataclasses.dataclass
-class KnownPackageName:
+class PackageName:
     package_name: str
     date_discovered: Optional[datetime.datetime]
     date_last_checked: Optional[datetime.datetime]
 
     @classmethod
-    def from_dict(cls, data: dict) -> "KnownPackageName":
+    def from_dict(cls, data: dict) -> "PackageName":
         return cls(
             package_name=data.get("package_name", None),
             date_discovered=data.get("date_discovered", None),
@@ -38,8 +38,8 @@ class KnownPackageName:
 
 
 @dataclasses.dataclass
-class KnownVersion:
-    known_version_id: str | uuid.UUID | None
+class Version:
+    version_id: str | uuid.UUID | None
     package_name: str
     package_version: str
     date_discovered: datetime.datetime | None
@@ -55,7 +55,7 @@ class KnownVersion:
     is_devrelease: bool | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "KnownVersion":
+    def from_dict(cls, data: dict) -> "Version":
         if "pre" in data:
             pre = tuple(data['pre'])
         elif "pre_0" in data and "pre_1" in data:
@@ -64,7 +64,7 @@ class KnownVersion:
             pre = None
 
         return cls(
-            known_version_id=data.get("known_version_id", None),
+            version_id=data.get("version_id", None),
             package_name=data.get("package_name", None),
             package_version=data.get("package_version", None),
             date_discovered=data.get("date_discovered", None),
@@ -82,9 +82,9 @@ class KnownVersion:
 
 
 @dataclasses.dataclass
-class VersionDistribution:
-    known_version_id: Optional[str]
-    version_distribution_id: Optional[str]
+class Distribution:
+    version_id: Optional[str]
+    distribution_id: Optional[str]
     package_type: str
     python_version: str
     requires_python: Optional[str]
@@ -96,10 +96,10 @@ class VersionDistribution:
     metadata_file_size: int | None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "VersionDistribution":
+    def from_dict(cls, data: dict) -> "Distribution":
         return cls(
-            known_version_id=data.get("known_version_id", None),
-            version_distribution_id=data.get("version_distribution_id", None),
+            version_id=data.get("version_id", None),
+            distribution_id=data.get("distribution_id", None),
             package_type=data.get("package_type", None),
             python_version=data.get("python_version", None),
             requires_python=data.get("requires_python", None),
@@ -114,14 +114,14 @@ class VersionDistribution:
     def to_json(self) -> str:
         return json.dumps(
             dict(
-                known_version_id=(
-                    str(self.known_version_id)
-                    if self.known_version_id is not None
+                version_id=(
+                    str(self.version_id)
+                    if self.version_id is not None
                     else None
                 ),
-                version_distribution_id=(
-                    str(self.version_distribution_id)
-                    if self.version_distribution_id is not None
+                distribution_id=(
+                    str(self.distribution_id)
+                    if self.distribution_id is not None
                     else None
                 ),
                 package_type=self.package_type,
@@ -138,17 +138,17 @@ class VersionDistribution:
 
 
 @dataclasses.dataclass
-class DirectDependency:
-    version_distribution_id: str
+class Requirement:
+    distribution_id: str
     extras: Optional[str]
     dependency_name: str
     dependency_extras: Optional[str]
     version_constraint: Optional[str]
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DirectDependency":
+    def from_dict(cls, data: dict) -> "Requirement":
         return cls(
-            version_distribution_id=data.get("version_distribution_id", None),
+            distribution_id=data.get("distribution_id", None),
             extras=data.get("extras", None),
             dependency_name=data.get("dependency_name", None),
             dependency_extras=data.get("dependency_extras", None),

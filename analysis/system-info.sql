@@ -20,9 +20,9 @@ order by row_count_estimate;
 --
 -- Packages with non-compliant version strings
 --
-select * from pypi_packages.known_versions where package_release = '{}';
+select * from pypi_packages.versions where package_release = '{}';
 
-select package_name, count(*) from pypi_packages.known_versions
+select package_name, count(*) from pypi_packages.versions
 where package_release = '{}'
 group by package_name
 order by count(*) desc;

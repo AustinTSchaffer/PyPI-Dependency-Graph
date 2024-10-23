@@ -12,16 +12,16 @@ from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
 
 
-class KnownPackageNameRepository:
+class PackageNamesRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
-    async def _insert_known_package_names(
+    async def _insert_package_names(
         self,
-        package_names: list[models.KnownPackageName] | list[str],
+        package_names: list[models.PackageName] | list[str],
         cursor: AsyncCursor,
         return_inserted: bool = False,
-    ) -> list[models.KnownPackageName]:
+    ) -> list[models.PackageName]:
         if not package_names:
             return []
 
@@ -31,10 +31,10 @@ class KnownPackageNameRepository:
         for package_names in itertools.batched(
             package_names, constants.POSTGRES_MAX_QUERY_PARAMS // MAX_PARAMS_PER_INSERT
         ):
-            query = f"insert into {table_names.KNOWN_PACKAGE_NAMES} "
+            query = f"insert into {table_names.PACKAGE_NAMES} "
             params = []
 
-            if isinstance(package_names[0], models.KnownPackageName):
+            if isinstance(package_names[0], models.PackageName):
                 query += " (package_name, date_discovered, date_last_checked) values "
                 query += ",".join(
                     "(%s, coalesce(%s, now()), %s)" for _ in range(len(package_names))
@@ -62,18 +62,18 @@ class KnownPackageNameRepository:
 
             if return_inserted:
                 rows = await cursor.fetchall()
-                output.extend(map(models.KnownPackageName.from_dict, rows))
+                output.extend(map(models.PackageName.from_dict, rows))
 
         return output
 
-    async def insert_known_package_names(
+    async def insert_package_names(
         self,
-        package_names: list[models.KnownPackageName | str],
+        package_names: list[models.PackageName | str],
         cursor: AsyncCursor | None = None,
         return_inserted: bool = False,
-    ) -> list[models.KnownPackageName]:
+    ) -> list[models.PackageName]:
         if cursor:
-            return await self._insert_known_package_names(
+            return await self._insert_package_names(
                 package_names, cursor, return_inserted=return_inserted
             )
         else:
@@ -81,40 +81,40 @@ class KnownPackageNameRepository:
                 self.db_pool.connection() as conn,
                 conn.cursor(row_factory=dict_row) as cursor,
             ):
-                result = await self._insert_known_package_names(
+                result = await self._insert_package_names(
                     package_names, cursor, return_inserted=return_inserted
                 )
                 await cursor.execute("commit;")
                 return result
 
-    async def _update_known_package_names(
-        self, package_names: list[models.KnownPackageName], cursor: AsyncCursor
+    async def _update_package_names(
+        self, package_names: list[models.PackageName], cursor: AsyncCursor
     ):
         if not package_names:
             return
 
-        query = f"update {table_names.KNOWN_PACKAGE_NAMES} set date_last_checked = %s where package_name = %s;"
+        query = f"update {table_names.PACKAGE_NAMES} set date_last_checked = %s where package_name = %s;"
         params_seq = [(pn.date_last_checked, pn.package_name) for pn in package_names]
 
         await cursor.executemany(query, params_seq)
 
-    async def update_known_package_names(
+    async def update_package_names(
         self,
-        package_names: list[models.KnownPackageName],
+        package_names: list[models.PackageName],
         cursor: AsyncCursor | None = None,
     ):
         if cursor:
-            await self._update_known_package_names(package_names, cursor)
+            await self._update_package_names(package_names, cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._update_known_package_names(package_names, cursor)
+                await self._update_package_names(package_names, cursor)
                 await cursor.execute("commit;")
 
-    async def get_known_package_name(
-        self, package_name: str | models.KnownPackageName
-    ) -> models.KnownPackageName | None:
+    async def get_package_name(
+        self, package_name: str | models.PackageName
+    ) -> models.PackageName | None:
         """
-        Retrieves a known package name record from the database if it exists.
+        Retrieves a package name record from the database if it exists.
         Canonicalizes the name before retrieval.
         """
 
@@ -130,7 +130,7 @@ class KnownPackageNameRepository:
                     kpn.package_name,
                     kpn.date_discovered,
                     kpn.date_last_checked
-                from {table_names.KNOWN_PACKAGE_NAMES} kpn
+                from {table_names.PACKAGE_NAMES} kpn
                 where kpn.package_name = %s
             """
         )
@@ -144,21 +144,21 @@ class KnownPackageNameRepository:
             return (
                 None
                 if not results
-                else models.KnownPackageName(
+                else models.PackageName(
                     package_name=results[0]["package_name"],
                     date_discovered=results[0]["date_discovered"],
                     date_last_checked=results[0]["date_last_checked"],
                 )
             )
 
-    async def iter_known_package_names(
+    async def iter_package_names(
         self, date_last_checked_before: datetime.datetime | None = None
-    ) -> AsyncIterable[models.KnownPackageName]:
+    ) -> AsyncIterable[models.PackageName]:
         async with (
             self.db_pool.connection() as conn,
             conn.cursor(row_factory=dict_row) as cursor,
         ):
-            query = f"select kpn.package_name, kpn.date_discovered, kpn.date_last_checked from {table_names.KNOWN_PACKAGE_NAMES} kpn"
+            query = f"select kpn.package_name, kpn.date_discovered, kpn.date_last_checked from {table_names.PACKAGE_NAMES} kpn"
 
             params = []
             if date_last_checked_before is not None:
@@ -173,12 +173,12 @@ class KnownPackageNameRepository:
 
             await cursor.execute(query, params)
             async for record in cursor:
-                yield models.KnownPackageName.from_dict(record)
+                yield models.PackageName.from_dict(record)
 
     async def _propagate_dependency_names(self, cursor: AsyncCursor):
         query = f"""
-            insert into {table_names.KNOWN_PACKAGE_NAMES} (package_name)
-            select distinct dependency_name from {table_names.DIRECT_DEPENDENCIES}
+            insert into {table_names.PACKAGE_NAMES} (package_name)
+            select distinct dependency_name from {table_names.REQUIREMENTS}
             on conflict do nothing;
         """
 

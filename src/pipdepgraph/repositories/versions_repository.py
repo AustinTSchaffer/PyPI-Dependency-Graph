@@ -24,22 +24,22 @@ def format_pg_integer_array(array: tuple[int | None, ...]) -> str:
     return "{" + ",".join(vals) + "}"
 
 
-class KnownVersionRepository:
+class VersionsRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
-    async def _insert_known_versions(
-        self, known_versions: list[models.KnownVersion], cursor: AsyncCursor
+    async def _insert_versions(
+        self, versions: list[models.Version], cursor: AsyncCursor
     ) -> None:
-        if not known_versions:
+        if not versions:
             return None
 
         PARAMS_PER_INSERT = 13
-        for known_versions in itertools.batched(
-            known_versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
+        for versions in itertools.batched(
+            versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
         ):
             query = f"""
-            INSERT INTO {table_names.KNOWN_VERSIONS}
+            INSERT INTO {table_names.VERSIONS}
             (
                 package_name, package_version, date_discovered,
                 epoch, package_release, pre_0, pre_1, post, dev, "local",
@@ -50,7 +50,7 @@ class KnownVersionRepository:
 
             query += ",".join(
                 " ( %s, %s, coalesce(%s, now()), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) "
-                for _ in range(len(known_versions))
+                for _ in range(len(versions))
             )
 
             query += """
@@ -67,9 +67,9 @@ class KnownVersionRepository:
                 is_devrelease = EXCLUDED.is_devrelease
             ;"""
 
-            params = [None] * PARAMS_PER_INSERT * len(known_versions)
+            params = [None] * PARAMS_PER_INSERT * len(versions)
             offset = 0
-            for kv in known_versions:
+            for kv in versions:
                 params[offset + 0] = kv.package_name
                 params[offset + 1] = kv.package_version
                 params[offset + 2] = kv.date_discovered
@@ -92,28 +92,28 @@ class KnownVersionRepository:
 
             await cursor.execute(query, params)
 
-    async def insert_known_versions(
+    async def insert_versions(
         self,
-        known_versions: list[models.KnownVersion],
+        versions: list[models.Version],
         cursor: AsyncCursor | None = None,
     ) -> None:
         if cursor:
-            return await self._insert_known_versions(known_versions, cursor)
+            return await self._insert_versions(versions, cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                result = await self._insert_known_versions(known_versions, cursor)
+                result = await self._insert_versions(versions, cursor)
                 await cursor.execute("commit;")
                 return result
 
-    async def _update_known_version(
-        self, known_version: models.KnownVersion, cursor: AsyncCursor
+    async def _update_version(
+        self, version: models.Version, cursor: AsyncCursor
     ) -> None:
 
-        if not known_version.known_version_id:
-            raise ValueError("Missing known_version_id")
+        if not version.version_id:
+            raise ValueError("Missing version_id")
 
         query = f"""
-        UPDATE {table_names.KNOWN_VERSIONS}
+        UPDATE {table_names.VERSIONS}
         SET
             package_name = %s,
             package_version = %s,
@@ -130,56 +130,56 @@ class KnownVersionRepository:
             is_postrelease = %s,
             is_devrelease = %s
         WHERE
-            known_version_id = %s
+            version_id = %s
         ;"""
 
         params = (
-            known_version.package_name,
-            known_version.package_version,
-            known_version.date_discovered,
-            known_version.epoch,
+            version.package_name,
+            version.package_version,
+            version.date_discovered,
+            version.epoch,
             (
-                format_pg_integer_array(known_version.package_release)
-                if known_version.package_release is not None
+                format_pg_integer_array(version.package_release)
+                if version.package_release is not None
                 else None
             ),
-            known_version.pre[0] if known_version.pre else None,
-            known_version.pre[1] if known_version.pre else None,
-            known_version.post,
-            known_version.dev,
-            known_version.local,
-            known_version.is_prerelease,
-            known_version.is_postrelease,
-            known_version.is_devrelease,
-            known_version.known_version_id,
+            version.pre[0] if version.pre else None,
+            version.pre[1] if version.pre else None,
+            version.post,
+            version.dev,
+            version.local,
+            version.is_prerelease,
+            version.is_postrelease,
+            version.is_devrelease,
+            version.version_id,
         )
 
         await cursor.execute(query, params)
 
-    async def update_known_version(
+    async def update_version(
         self,
-        known_version: models.KnownVersion,
+        version: models.Version,
         cursor: AsyncCursor | None = None,
     ) -> None:
         if cursor:
-            return await self._update_known_version(known_version, cursor)
+            return await self._update_version(version, cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                result = await self._update_known_version(known_version, cursor)
+                result = await self._update_version(version, cursor)
                 await cursor.execute("commit;")
                 return result
 
-    async def _iter_known_versions(
+    async def _iter_versions(
         self,
         cursor: AsyncCursor,
         package_name: str | None = None,
         package_version: str | None = None,
         has_package_release: bool | None = None,
-    ) -> AsyncIterable[models.KnownVersion]:
+    ) -> AsyncIterable[models.Version]:
         query = textwrap.dedent(
             f"""
                 select
-                    kv.known_version_id,
+                    kv.version_id,
                     kv.package_name,
                     kv.package_version,
                     kv.date_discovered,
@@ -193,7 +193,7 @@ class KnownVersionRepository:
                     kv.is_prerelease,
                     kv.is_postrelease,
                     kv.is_devrelease
-                from {table_names.KNOWN_VERSIONS} kv
+                from {table_names.VERSIONS} kv
             """
         )
 
@@ -234,16 +234,16 @@ class KnownVersionRepository:
 
         await cursor.execute(query, params)
         async for record in cursor:
-            yield models.KnownVersion.from_dict(record)
+            yield models.Version.from_dict(record)
 
-    async def iter_known_versions(
+    async def iter_versions(
         self,
         *,
         cursor: AsyncCursor | None = None,
         package_name: str | None = None,
         package_version: str | None = None,
         has_package_release: bool | None = None,
-    ) -> AsyncIterable[models.KnownVersion]:
+    ) -> AsyncIterable[models.Version]:
         kwargs = dict(
             package_name=package_name,
             package_version=package_version,
@@ -251,7 +251,7 @@ class KnownVersionRepository:
         )
 
         if cursor:
-            async for record in self._iter_known_versions(
+            async for record in self._iter_versions(
                 cursor=cursor,
                 **kwargs,
             ):
@@ -261,7 +261,7 @@ class KnownVersionRepository:
                 self.db_pool.connection() as conn,
                 conn.cursor(row_factory=dict_row) as local_cursor,
             ):
-                async for record in self._iter_known_versions(
+                async for record in self._iter_versions(
                     cursor=local_cursor,
                     **kwargs,
                 ):

@@ -12,8 +12,8 @@ follow this pattern, I just chose `ipython` to demonstrate given its popularity.
 select
     kv.package_name, kv.package_version,
     dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint
-from known_versions kv join direct_dependencies dd
-    on kv.known_version_id = dd.known_version_id
+from versions kv join requirements dd
+    on kv.version_id = dd.version_id
 where dd.dependency_name = 'ipython' and kv.package_name = 'ipython'
 limit 1;
 ```
@@ -29,9 +29,9 @@ Taking this a step further, I wanted to see if any packages depend on themselves
 select
     kv.package_name, kv.package_version,
     dd.extras, dd.dependency_name, dd.dependency_extras, dd.version_constraint
-from known_versions kv
-join version_distributions vd on vd.known_version_id = kv.known_version_id
-join direct_dependencies dd on dd.version_distribution_id = vd.version_distribution_id
+from versions kv
+join distributions vd on vd.version_id = kv.version_id
+join requirements dd on dd.distribution_id = vd.distribution_id
 where dd.dependency_name = kv.package_name
 and dd.version_constraint != '';
 ```

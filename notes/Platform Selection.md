@@ -16,9 +16,9 @@ pairs by the number of distributions, the top 9 ([1](#footnotes)) packages are l
 
 ```sql
 select kv.package_name, kv.package_version, count(*) c
-from pypi_packages.version_distributions vd
-join pypi_packages.known_versions kv on vd.known_version_id = kv.known_version_id
-group by kv.known_version_id
+from pypi_packages.distributions vd
+join pypi_packages.versions kv on vd.version_id = kv.version_id
+group by kv.version_id
 order by count(*) desc;
 ```
 

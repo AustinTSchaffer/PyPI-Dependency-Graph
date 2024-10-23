@@ -12,35 +12,35 @@ from pipdepgraph.repositories import table_names
 
 
 @dataclasses.dataclass
-class DirectDependencyResult:
-    known_package_name: models.KnownPackageName
-    known_version: models.KnownVersion
-    version_distribution: models.VersionDistribution
-    direct_dependency: models.DirectDependency
+class RequirementResult:
+    package_name: models.PackageName
+    version: models.Version
+    distribution: models.Distribution
+    requirement: models.Requirement
 
 
-class DirectDependencyRepository:
+class RequirementsRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
-    async def _insert_direct_dependencies(
+    async def _insert_requirements(
         self,
-        direct_dependencies: list[models.DirectDependency],
+        requirements: list[models.Requirement],
         cursor: AsyncCursor,
     ):
-        if not direct_dependencies:
+        if not requirements:
             return
 
         PARAMS_PER_INSERT = 5
-        for direct_dependencies in itertools.batched(
-            direct_dependencies,
+        for requirements in itertools.batched(
+            requirements,
             constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
         ):
             query = textwrap.dedent(
                 f"""
-                    insert into {table_names.DIRECT_DEPENDENCIES}
+                    insert into {table_names.REQUIREMENTS}
                     (
-                        version_distribution_id,
+                        distribution_id,
                         extras,
                         dependency_name,
                         dependency_extras,
@@ -51,14 +51,14 @@ class DirectDependencyRepository:
             )
 
             query += ",".join(
-                " ( %s, %s, %s, %s, %s ) " for _ in range(len(direct_dependencies))
+                " ( %s, %s, %s, %s, %s ) " for _ in range(len(requirements))
             )
             query += " on conflict do nothing; "
 
-            params = [None] * PARAMS_PER_INSERT * len(direct_dependencies)
+            params = [None] * PARAMS_PER_INSERT * len(requirements)
             offset = 0
-            for dd in direct_dependencies:
-                params[offset + 0] = dd.version_distribution_id
+            for dd in requirements:
+                params[offset + 0] = dd.distribution_id
                 params[offset + 1] = dd.extras
                 params[offset + 2] = dd.dependency_name
                 params[offset + 3] = dd.dependency_extras
@@ -67,26 +67,26 @@ class DirectDependencyRepository:
 
             await cursor.execute(query, params)
 
-    async def insert_direct_dependencies(
+    async def insert_requirements(
         self,
-        direct_dependencies: list[models.DirectDependency],
+        requirements: list[models.Requirement],
         cursor: AsyncCursor | None = None,
     ):
         if cursor:
-            await self._insert_direct_dependencies(direct_dependencies, cursor)
+            await self._insert_requirements(requirements, cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._insert_direct_dependencies(direct_dependencies, cursor)
+                await self._insert_requirements(requirements, cursor)
                 await cursor.execute("commit;")
 
-    async def iter_direct_dependencies(
+    async def iter_requirements(
         self,
         kv_package_name: str | None = None,
         kv_package_version: str | None = None,
         vd_package_type: str | None = None,
         vd_processed: bool | None = None,
         output_as_dict=False,
-    ) -> AsyncIterable[DirectDependencyResult | dict]:
+    ) -> AsyncIterable[RequirementResult | dict]:
         """ """
 
         async with (
@@ -99,14 +99,14 @@ class DirectDependencyRepository:
                         kpn.package_name            package_name,
                         kpn.date_discovered         date_discovered,
                         kpn.date_last_checked       date_last_checked,
-                        kv.known_version_id         known_version_id,
+                        kv.version_id         version_id,
 
-                        kv.known_version_id         known_version_id,
+                        kv.version_id         version_id,
                         kv.package_version          package_version,
                         kv.package_release          package_release,
                         kv.date_discovered          date_discovered,
 
-                        vd.version_distribution_id  version_distribution_id,
+                        vd.distribution_id  distribution_id,
                         vd.package_type             package_type,
                         vd.python_version           python_version,
                         vd.requires_python          requires_python,
@@ -122,10 +122,10 @@ class DirectDependencyRepository:
                         dd.dependency_extras        dependency_extras,
                         dd.version_constraint       version_constraint
 
-                    from {table_names.KNOWN_PACKAGE_NAMES} kpn
-                    join {table_names.KNOWN_VERSIONS} kv on kv.package_name = kpn.package_name
-                    join {table_names.VERSION_DISTRIBUTIONS} vd on vd.known_version_id = kv.known_version_id
-                    join {table_names.DIRECT_DEPENDENCIES} dd on dd.version_distribution_id = vd.version_distribution_id
+                    from {table_names.PACKAGE_NAMES} kpn
+                    join {table_names.VERSIONS} kv on kv.package_name = kpn.package_name
+                    join {table_names.DISTRIBUTIONS} vd on vd.version_id = kv.version_id
+                    join {table_names.REQUIREMENTS} dd on dd.distribution_id = vd.distribution_id
                 """
             )
 
@@ -167,12 +167,12 @@ class DirectDependencyRepository:
                 yield (
                     record
                     if output_as_dict
-                    else DirectDependencyResult(
-                        known_package_name=models.KnownPackageName.from_dict(record),
-                        known_version=models.KnownVersion.from_dict(record),
-                        version_distribution=models.VersionDistribution.from_dict(
+                    else RequirementResult(
+                        package_name=models.PackageName.from_dict(record),
+                        version=models.Version.from_dict(record),
+                        distribution=models.Distribution.from_dict(
                             record
                         ),
-                        direct_dependency=models.DirectDependency.from_dict(record),
+                        requirement=models.Requirement.from_dict(record),
                     )
                 )

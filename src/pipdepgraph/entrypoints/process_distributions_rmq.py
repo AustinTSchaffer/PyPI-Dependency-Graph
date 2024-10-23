@@ -16,18 +16,18 @@ from pipdepgraph import constants, models, pypi_api
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (
-    known_package_name_repository,
-    known_version_repository,
-    version_distribution_repository,
-    direct_dependency_repository,
+    distributions_repository,
+    package_names_repository,
+    requirements_repository,
+    versions_repository,
 )
 
 from pipdepgraph.services import (
-    version_distribution_processing_service,
+    distribution_processing_service,
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.process_version_distributions_rmq")
+logger = logging.getLogger("pipdepgraph.entrypoints.process_distributions_rmq")
 
 
 async def main():
@@ -37,10 +37,10 @@ async def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        kpnr = known_package_name_repository.KnownPackageNameRepository(db_pool)
-        kvr = known_version_repository.KnownVersionRepository(db_pool)
-        vdr = version_distribution_repository.VersionDistributionRepository(db_pool)
-        ddr = direct_dependency_repository.DirectDependencyRepository(db_pool)
+        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        vr = versions_repository.VersionsRepository(db_pool)
+        dr = distributions_repository.DistributionsRepository(db_pool)
+        rr = requirements_repository.RequirementsRepository(db_pool)
 
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
@@ -51,12 +51,12 @@ async def main():
         )
 
         logger.info(
-            "Initializing version_distribution_processing_service.VersionDistributionProcessingService"
+            "Initializing distribution_processing_service.DistributionProcessingService"
         )
-        vdps = version_distribution_processing_service.VersionDistributionProcessingService(
-            kpnr=kpnr,
-            vdr=vdr,
-            ddr=ddr,
+        dps = distribution_processing_service.DistributionProcessingService(
+            pnr=pnr,
+            dr=dr,
+            rr=rr,
             pypi=pypi,
             db_pool=db_pool,
             rmq_pub=rmq_pub,
@@ -64,24 +64,24 @@ async def main():
 
         logger.info("Starting RabbitMQ consumer thread")
 
-        version_distributions_queue: queue.Queue[models.VersionDistribution] = (
+        distributions_queue: queue.Queue[models.Distribution] = (
             queue.Queue()
         )
         ack_queue: queue.Queue[bool] = queue.Queue()
         consume_from_rabbitmq_thread = threading.Thread(
             target=consume_from_rabbitmq_target,
-            args=[version_distributions_queue, ack_queue],
+            args=[distributions_queue, ack_queue],
         )
 
         consume_from_rabbitmq_thread.start()
 
         logger.info("Running.")
         while True:
-            version_distribution = None
+            distribution = None
 
             try:
-                version_distribution = version_distributions_queue.get(timeout=5.0)
-                await vdps.process_version_distribution(version_distribution)
+                distribution = distributions_queue.get(timeout=5.0)
+                await dps.process_distribution(distribution)
                 ack_queue.put(True)
 
             except queue.Empty as ex:
@@ -91,7 +91,7 @@ async def main():
 
             except Exception as ex:
                 logger.error(
-                    f"Error while handling Version Distribution message: {version_distribution}",
+                    f"Error while handling Version Distribution message: {distribution}",
                     exc_info=ex,
                 )
                 ack_queue.put(False)
@@ -99,11 +99,11 @@ async def main():
 
 
 def consume_from_rabbitmq_target(
-    version_distributions_queue: queue.Queue[models.VersionDistribution],
+    distributions_queue: queue.Queue[models.Distribution],
     ack_queue: queue.Queue[bool],
 ):
     """
-    Consumes VersionDistribution record from RabbitMQ, placing it into the `version_distributions_queue`.
+    Consumes VersionDistribution record from RabbitMQ, placing it into the `distributions_queue`.
     Expects a response on the `ack_queue` containing a single flag indicating whether
     the message should be acked or nacked.
     """
@@ -114,9 +114,9 @@ def consume_from_rabbitmq_target(
     ):
         channel: pika.adapters.blocking_connection.BlockingChannel
         common.declare_rabbitmq_infrastructure(channel)
-        channel.basic_qos(prefetch_count=constants.RABBITMQ_VD_SUB_PREFETCH)
+        channel.basic_qos(prefetch_count=constants.RABBITMQ_DISTS_SUB_PREFETCH)
 
-        def _version_distribution_consumer(
+        def _distribution_consumer(
             ch: pika.channel.Channel,
             basic_deliver: pika.spec.Basic.Deliver,
             properties: pika.spec.BasicProperties,
@@ -124,8 +124,8 @@ def consume_from_rabbitmq_target(
         ):
             try:
                 vd_json = json.loads(body)
-                version_distribution = models.VersionDistribution.from_dict(vd_json)
-                version_distributions_queue.put(version_distribution)
+                distribution = models.Distribution.from_dict(vd_json)
+                distributions_queue.put(distribution)
 
                 ack = ack_queue.get()
                 if ack:
@@ -136,7 +136,7 @@ def consume_from_rabbitmq_target(
 
             except Exception as ex:
                 logger.error(
-                    f"Error while handling Version Distribution message: {basic_deliver}",
+                    f"Error while handling Distribution message: {basic_deliver}",
                     exc_info=ex,
                 )
                 ch.basic_nack(basic_deliver.delivery_tag)
@@ -149,8 +149,8 @@ def consume_from_rabbitmq_target(
             logger.info("Starting RabbitMQ consumer with ctag: %s", consumer_tag)
 
         channel.basic_consume(
-            queue=constants.RABBITMQ_VD_QNAME,
-            on_message_callback=_version_distribution_consumer,
+            queue=constants.RABBITMQ_DISTS_QNAME,
+            on_message_callback=_distribution_consumer,
             consumer_tag=consumer_tag,
             auto_ack=False,
         )

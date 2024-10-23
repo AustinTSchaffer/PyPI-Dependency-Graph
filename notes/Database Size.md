@@ -12,16 +12,16 @@ With the current schema, at this present moment. Here's the DB stats.
 
 | table               | rows    | size_pretty | size_bytes |
 |---------------------|---------|-------------|------------|
-| known_package_names |    2936 | 368 kB      |     376832 |
-| known_versions      |  477995 | 247 MB      |  258850816 |
-| direct_dependencies | 2185832 | 455 MB      |  476807168 |
+| package_names |    2936 | 368 kB      |     376832 |
+| versions      |  477995 | 247 MB      |  258850816 |
+| requirements | 2185832 | 455 MB      |  476807168 |
 
 - Current num packages on PyPI: $530,000$
 - Percentage of packages discovered:
   - $=2936/530000$
   - $=0.00554$
   - $\approx 0.55\%$
-- Approximate full size of `known_package_names`
+- Approximate full size of `package_names`
   - $=\frac{376832 \space\text{B}}{0.00554}$
   - $=68,020,216 \space\text{B}$
   - $=68 \space\text{MB}$
@@ -38,7 +38,7 @@ With the current schema, at this present moment. Here's the DB stats.
   - $=530000*163*17.1$
   - $=1,477,269,000$
   - **1.48 billion `dd` records**
-- Estimate full size of `direct_dependencies`
+- Estimate full size of `requirements`
   - $=1,477,269,000*218 \space\text{B}$
   - $=322,044,642,000 \space\text{B}$
   - $=322 \space\text{GB}$
@@ -49,7 +49,7 @@ With the current schema, at this present moment. Here's the DB stats.
   - $=530000*163$
   - $=86,390,000$
   - **86.4 million `kv` records**
-- Estimate full size of `known_versions`
+- Estimate full size of `versions`
   - $=86,390,000 * 542 \space\text{B}$
   - $=46,823,380,000 \space\text{B}$
   - $=46 \space\text{GB}$

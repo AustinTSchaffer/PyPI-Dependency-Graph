@@ -16,11 +16,11 @@ The reason why I believe these can be improved is because there's no reverse-dep
 
 ### RabbitMQ
 
-Below is a screenshot from RabbitMQ showing 1.2M messages being processed, mostly version distribution records.
+Below is a screenshot from RabbitMQ showing 1.2M messages being processed, mostly distribution records.
 
 ![](./images/rabbitmq-screenshot-1.png)
 
-Below is a screenshot from RabbitMQ showing 500k messages being processed from the `version_distributions` queue. This screenshot was taken while the cluster was processing all of the PyPI packages which begin with the letter "A".
+Below is a screenshot from RabbitMQ showing 500k messages being processed from the `distributions` queue. This screenshot was taken while the cluster was processing all of the PyPI packages which begin with the letter "A".
 
 ![](./images/rabbitmq-screenshot-2.png)
 
@@ -67,6 +67,9 @@ Below is a screenshot of a terminal showing multiple tmux panes, most of them ru
 - https://github.com/sethmlarson/pypi-data
   - Only has dependency information for the latest version of each package.
 - https://dustingram.com/articles/2018/03/05/why-pypi-doesnt-know-dependencies/
+- "Since August 2023, PyPI rejects egg uploads."
+  - https://blog.pypi.org/posts/2023-06-26-deprecate-egg-uploads/
+  - https://packaging.python.org/en/latest/discussions/package-formats/#egg-format
 
 ## Docker Stack
 

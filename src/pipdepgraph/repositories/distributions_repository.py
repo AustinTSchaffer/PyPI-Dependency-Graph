@@ -10,29 +10,29 @@ from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
 
 
-class VersionDistributionRepository:
+class DistributionsRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
-    async def _insert_version_distributions(
+    async def _insert_distributions(
         self,
-        version_distributions: list[models.VersionDistribution],
+        distributions: list[models.Distribution],
         cursor: AsyncCursor,
         return_inserted: bool = False,
-    ) -> list[models.VersionDistribution]:
-        if not version_distributions:
+    ) -> list[models.Distribution]:
+        if not distributions:
             return []
 
         PARAMS_PER_INSERT = 8
-        for version_distributions in itertools.batched(
-            version_distributions,
+        for distributions in itertools.batched(
+            distributions,
             constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
         ):
             query = textwrap.dedent(
                 f"""
-                    insert into {table_names.VERSION_DISTRIBUTIONS}
+                    insert into {table_names.DISTRIBUTIONS}
                     (
-                        known_version_id,
+                        version_id,
                         package_type,
                         python_version,
                         requires_python,
@@ -47,7 +47,7 @@ class VersionDistributionRepository:
 
             query += ",".join(
                 "( %s, %s, %s, %s, %s, %s, %s, %s ) "
-                for _ in range(len(version_distributions))
+                for _ in range(len(distributions))
             )
             query += " on conflict do nothing "
 
@@ -55,8 +55,8 @@ class VersionDistributionRepository:
                 query += textwrap.dedent(
                     """
                         returning
-                            version_distribution_id,
-                            known_version_id,
+                            distribution_id,
+                            version_id,
                             package_type,
                             python_version,
                             requires_python,
@@ -69,11 +69,11 @@ class VersionDistributionRepository:
                     """
                 )
 
-            params = [None] * PARAMS_PER_INSERT * len(version_distributions)
+            params = [None] * PARAMS_PER_INSERT * len(distributions)
 
             offset = 0
-            for vd in version_distributions:
-                params[offset + 0] = vd.known_version_id
+            for vd in distributions:
+                params[offset + 0] = vd.version_id
                 params[offset + 1] = vd.package_type
                 params[offset + 2] = vd.python_version
                 params[offset + 3] = vd.requires_python
@@ -86,81 +86,81 @@ class VersionDistributionRepository:
             await cursor.execute(query, params)
             if return_inserted:
                 rows = await cursor.fetchall()
-                return [models.VersionDistribution(**row) for row in rows]
+                return [models.Distribution(**row) for row in rows]
             else:
                 return []
 
-    async def insert_version_distributions(
+    async def insert_distributions(
         self,
-        version_distributions: list[models.VersionDistribution],
+        distributions: list[models.Distribution],
         cursor: AsyncCursor | None = None,
         return_inserted: bool = False,
-    ) -> list[models.VersionDistribution]:
+    ) -> list[models.Distribution]:
         if cursor:
-            return await self._insert_version_distributions(
-                version_distributions, cursor, return_inserted=return_inserted
+            return await self._insert_distributions(
+                distributions, cursor, return_inserted=return_inserted
             )
         else:
             async with self.db_pool.connection() as conn, conn.cursor(
                 row_factory=dict_row
             ) as cursor:
-                result = await self._insert_version_distributions(
-                    version_distributions, cursor, return_inserted=return_inserted
+                result = await self._insert_distributions(
+                    distributions, cursor, return_inserted=return_inserted
                 )
                 await cursor.execute("commit;")
                 return result
 
-    async def _update_version_distributions(
+    async def _update_distributions(
         self,
-        version_distributions: list[models.VersionDistribution],
+        distributions: list[models.Distribution],
         cursor: AsyncCursor,
     ):
-        if not version_distributions:
+        if not distributions:
             return
 
         query = textwrap.dedent(
             f"""
-                update {table_names.VERSION_DISTRIBUTIONS}
+                update {table_names.DISTRIBUTIONS}
                 set
                     processed = %s,
                     metadata_file_size = coalesce(%s, metadata_file_size)
                 where
-                    version_distribution_id = %s
+                    distribution_id = %s
             """
         )
 
         params_seq = [
-            (vd.processed, vd.metadata_file_size, vd.version_distribution_id)
-            for vd in version_distributions
+            (vd.processed, vd.metadata_file_size, vd.distribution_id)
+            for vd in distributions
         ]
 
         await cursor.executemany(query, params_seq)
 
-    async def update_version_distributions(
+    async def update_distributions(
         self,
-        version_distributions: list[models.VersionDistribution],
+        distributions: list[models.Distribution],
         cursor: AsyncCursor | None = None,
     ):
         if cursor:
-            await self._update_version_distributions(version_distributions, cursor)
+            await self._update_distributions(distributions, cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._update_version_distributions(version_distributions, cursor)
+                await self._update_distributions(distributions, cursor)
                 await cursor.execute("commit;")
 
-    async def iter_version_distributions(
+    async def iter_distributions(
         self,
         processed: bool | None = None,
-        package_name: str | models.KnownPackageName | None = None,
-    ) -> AsyncIterable[models.VersionDistribution]:
+        package_name: str | models.PackageName | None = None,
+    ) -> AsyncIterable[models.Distribution]:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
             query = textwrap.dedent(
                 f"""
                     select
-                        vd.version_distribution_id,
-                        vd.known_version_id,
+                        vd.distribution_id,
+                        vd.version_id,
                         vd.package_type,
                         vd.python_version,
                         vd.requires_python,
@@ -170,9 +170,9 @@ class VersionDistributionRepository:
                         vd.package_url,
                         vd.metadata_file_size,
                         vd.processed
-                    from {table_names.VERSION_DISTRIBUTIONS} vd
-                    {"" if package_name is None else f" left join {table_names.KNOWN_VERSIONS} kv on kv.known_version_id = vd.known_version_id "}
-                    {"" if package_name is None else f" left join {table_names.KNOWN_PACKAGE_NAMES} kpn on kpn.package_name = kv.package_name "}
+                    from {table_names.DISTRIBUTIONS} vd
+                    {"" if package_name is None else f" left join {table_names.VERSIONS} kv on kv.version_id = vd.version_id "}
+                    {"" if package_name is None else f" left join {table_names.PACKAGE_NAMES} kpn on kpn.package_name = kv.package_name "}
                 """
             )
 
@@ -200,4 +200,4 @@ class VersionDistributionRepository:
 
             await cursor.execute(query, params)
             async for record in cursor:
-                yield models.VersionDistribution.from_dict(record)
+                yield models.Distribution.from_dict(record)

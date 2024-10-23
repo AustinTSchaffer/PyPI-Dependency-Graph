@@ -16,27 +16,27 @@ RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "password")
 RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST", "pypi_scraper")
 RABBITMQ_EXCHANGE = os.getenv("RABBITMQ_EXCHANGE", "pypi_scraper")
 
-RABBITMQ_KPN_QNAME = "known_package_names"
-RABBITMQ_KPN_RK_PREFIX = "known_package_name."
-RABBITMQ_KPN_RK = f"{RABBITMQ_KPN_RK_PREFIX}#"
-RABBITMQ_KPN_SUB_PREFETCH = int(os.getenv("RABBITMQ_KPN_SUB_PREFETCH", 50))
+RABBITMQ_NAMES_QNAME = "package_names"
+RABBITMQ_NAMES_RK_PREFIX = "package_name."
+RABBITMQ_NAMES_RK = f"{RABBITMQ_NAMES_RK_PREFIX}#"
+RABBITMQ_NAMES_SUB_PREFETCH = int(os.getenv("RABBITMQ_NAMES_SUB_PREFETCH", 50))
 
-RABBITMQ_VD_QNAME = "version_distributions"
-RABBITMQ_VD_RK_PREFIX = "version_distribution."
-RABBITMQ_VD_RK = f"{RABBITMQ_VD_RK_PREFIX}#"
-RABBITMQ_VD_SUB_PREFETCH = int(os.getenv("RABBITMQ_VD_SUB_PREFETCH", 100))
+RABBITMQ_DISTS_QNAME = "distributions"
+RABBITMQ_DISTS_RK_PREFIX = "distribution."
+RABBITMQ_DISTS_RK = f"{RABBITMQ_DISTS_RK_PREFIX}#"
+RABBITMQ_DISTS_SUB_PREFETCH = int(os.getenv("RABBITMQ_DISTS_SUB_PREFETCH", 100))
 
 RABBITMQ_CTAG_PREFIX = os.getenv("RABBITMQ_CTAG_PREFIX", None)
 
-VDP_DISCOVER_PACKAGE_NAMES = bool(
-    os.getenv("VDP_DISCOVER_PACKAGE_NAMES", "false").strip().lower() == "true"
+DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES = bool(
+    os.getenv("DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES", "false").strip().lower() == "true"
 )
 
 UPL_LOAD_PACKAGE_NAMES = bool(
     os.getenv("UPL_LOAD_PACKAGE_NAMES", "true").strip().lower() == "true"
 )
-UPL_LOAD_VERSION_DISTRIBUTIONS = bool(
-    os.getenv("UPL_LOAD_VERSION_DISTRIBUTIONS", "true").strip().lower() == "true"
+UPL_LOAD_DISTRIBUTIONS = bool(
+    os.getenv("UPL_LOAD_DISTRIBUTIONS", "true").strip().lower() == "true"
 )
 
 PACKAGE_RELEASE_TERM_MAX_SIZE = 9_223_372_036_854_775_807  # Postgres bigint max size

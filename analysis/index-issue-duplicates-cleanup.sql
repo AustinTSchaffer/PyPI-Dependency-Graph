@@ -1,4 +1,4 @@
-select * from pypi_packages.known_versions kv where package_name ilike 'json-spec' order by package_release;
+select * from pypi_packages.versions kv where package_name ilike 'json-spec' order by package_release;
 
 begin;
 
@@ -11,23 +11,23 @@ with dupes as (
 		select
 			*,
 			rank() over(partition by package_name order by date_discovered asc) rank_
-		from pypi_packages.known_package_names kpn
+		from pypi_packages.package_names kpn
 		where package_name in (
 			select
 				package_name
-			from pypi_packages.known_package_names kpn
+			from pypi_packages.package_names kpn
 			group by package_name
 			having count(*) > 1
 		)
 	) subq
 	where subq.rank_ > 1
-) delete from pypi_packages.known_package_names kpn
+) delete from pypi_packages.package_names kpn
 using dupes
 where kpn.package_name = dupes.package_name and kpn.date_discovered = dupes.date_discovered;
 
 commit;
 
-delete from pypi_packages.known_versions where package_name ilike 'json-spec';
+delete from pypi_packages.versions where package_name ilike 'json-spec';
 
 with dupes as (
 	select
@@ -37,17 +37,17 @@ with dupes as (
 		select
 			*,
 			rank() over(partition by package_name, package_version order by date_discovered asc) rank_
-		from pypi_packages.known_versions kv
+		from pypi_packages.versions kv
 		where (package_name, package_version) in (
 			select
 				package_name, package_version
-			from pypi_packages.known_versions kv
+			from pypi_packages.versions kv
 			group by package_name, package_version
 			having count(*) > 1
 		)
 	) subq
 	where subq.rank_ > 1
-) delete from pypi_packages.known_package_names kpn
+) delete from pypi_packages.package_names kpn
 using dupes
 where kpn.package_name = dupes.package_name and kpn.date_discovered = dupes.date_discovered;
 
@@ -57,28 +57,28 @@ with dupes as (
 	select
 		package_url,
 		processed,
-		version_distribution_id
+		distribution_id
 	from (
 		select
 			*,
-			rank() over(partition by package_url order by version_distribution_id asc) rank_
-		from pypi_packages.version_distributions vd
+			rank() over(partition by package_url order by distribution_id asc) rank_
+		from pypi_packages.distributions vd
 		where package_url in (
 			select
 				package_url
-			from pypi_packages.version_distributions vd
+			from pypi_packages.distributions vd
 			group by package_url
 			having count(*) > 1
 		)
 	) subq
 	where subq.rank_ > 1
-) delete from pypi_packages.version_distributions vd
+) delete from pypi_packages.distributions vd
 using dupes
-where vd.version_distribution_id = dupes.version_distribution_id;
+where vd.distribution_id = dupes.distribution_id;
 
 commit;
 
-reindex table pypi_packages.known_package_names;
-reindex table pypi_packages.known_versions;
-reindex table pypi_packages.version_distributions;
-reindex table pypi_packages.direct_dependencies;
+reindex table pypi_packages.package_names;
+reindex table pypi_packages.versions;
+reindex table pypi_packages.distributions;
+reindex table pypi_packages.requirements;

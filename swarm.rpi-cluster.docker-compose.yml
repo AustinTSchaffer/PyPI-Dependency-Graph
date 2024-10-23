@@ -40,9 +40,9 @@ services:
     volumes:
       - broker:/var/lib/postgresql/data
 
-  kpn_processor:
+  names_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
-    command: ["python", "src/pipdepgraph/entrypoints/process_known_package_names_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_package_names_rmq.py"]
     deploy:
       restart_policy:
         condition: any
@@ -62,12 +62,12 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
-      RABBITMQ_CTAG_PREFIX: "kpn_processor.{{.Task.Slot}}."
+      RABBITMQ_CTAG_PREFIX: "names_processor.{{.Task.Slot}}."
     depends_on:
       - db
       - broker
 
-  vd_processor:
+  dists_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     deploy:
       restart_policy:
@@ -76,7 +76,7 @@ services:
       placement:
         constraints:
           - node.labels.role==app
-    command: ["python", "src/pipdepgraph/entrypoints/process_version_distributions_rmq.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/process_distributions_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -89,7 +89,7 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
-      RABBITMQ_CTAG_PREFIX: "vd_processor.{{.Task.Slot}}."
+      RABBITMQ_CTAG_PREFIX: "dists_processor.{{.Task.Slot}}."
     depends_on:
       - db
       - broker
@@ -117,7 +117,7 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "pypi_loader.{{.Task.Slot}}."
-      UPL_LOAD_VERSION_DISTRIBUTIONS: "true"
+      UPL_LOAD_DISTRIBUTIONS: "true"
       UPL_LOAD_PACKAGE_NAMES: "false"
     depends_on:
       - db

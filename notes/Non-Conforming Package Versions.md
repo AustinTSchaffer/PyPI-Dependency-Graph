@@ -1,22 +1,22 @@
 # Non-Conforming Package Versions
 
-Part of the package name processor involves storing all of the "known versions" of a particular
+Part of the package name processor involves storing all of the versions of a particular
 package. A piece of that process involves parsing the package's version number using the
 `packaging` module. Specifically, using the `packaging.version.parse` method.
 
 ```python
 try:
-    parsed_version = packaging.version.parse(known_version.package_version)
+    parsed_version = packaging.version.parse(version.package_version)
     for release_term in parsed_version.release:
         if release_term > constants.PACKAGE_RELEASE_TERM_MAX_SIZE:
             raise ValueError(
-                f"{package_name.package_name} - Version {known_version.package_version} contains a term larger than {constants.PACKAGE_RELEASE_TERM_MAX_SIZE}"
+                f"{package_name.package_name} - Version {version.package_version} contains a term larger than {constants.PACKAGE_RELEASE_TERM_MAX_SIZE}"
             )
 
-    known_version.package_release = parsed_version.release
+    version.package_release = parsed_version.release
 except Exception as ex:
     logger.error(
-        f"{package_name.package_name} - Error parsing version {known_version.package_version}.",
+        f"{package_name.package_name} - Error parsing version {version.package_version}.",
         exc_info=ex,
     )
 ```
@@ -29,7 +29,7 @@ based on some version range.
 select
 	kv.package_name,
 	kv.package_version
-from known_versions kv
+from versions kv
 where
 	kv.package_name = 'boto3'
 	and (
@@ -66,10 +66,10 @@ of them are not natively parsable.
 
 ```sql
 select
-    'non-conforming' as "q", count(*) from known_versions kv
-    where kv.package_release = '{}' and package_release_numeric is null
+    'non-conforming' as "q", count(*) from versions kv
+    where kv.package_release = '{}'
 union select
-    'all' as "q", count(*) from known_versions kv;
+    'all' as "q", count(*) from versions kv;
 
 -- all            6222702
 -- non-conforming    5078
@@ -123,21 +123,21 @@ Firstly, we really only care about wheels. They're the recommended method for pa
 distributing, and installing dependencies. The method above essentially relies on directly
 downloading an `sdist` distribution.
 
-Secondly, this may be an old problem. If we scan for non conforming package versions
-and look at the upload date of their most recently uploaded distribution, the last truly\* non-
-conforming package version was uploaded on Feb 5, 2016 (`pyavl==1.12_1`). I haven't yet
-established how "old" packages can be before we stop caring about them, but we certainly
-shouldn't put extra effort into making a better resolver work for packages that are over
-8 years old, and can't even be installed directly from PyPI via pip.
+Secondly, this may be a problem that so old it's not worth solving. If we scan for non-
+conforming package versions and look at the upload date of their most recently uploaded 
+distribution, the unparsable package version was uploaded on Feb 5, 2016  (`pyavl==1.12_1`).
+I haven't yet established how "old" packages can be before we stop caring about them, but we 
+certainly shouldn't put too much extra effort into making a better resolver work for packages 
+that are over 8 years old, and can't even be installed directly from PyPI via pip.
 
 ```sql
 with
 	non_conforming_versions as (
 		select
-			known_version_id,
+			version_id,
 			package_name,
 			package_version
-		from known_versions kv
+		from versions kv
 		where kv.package_release = '{}'
 	)
 select
@@ -145,7 +145,7 @@ select
 	package_version,
 	max(vd.upload_time) max_upload_time
 from non_conforming_versions ncv
-left join version_distributions vd on ncv.known_version_id = vd.known_version_id
+left join distributions vd on ncv.version_id = vd.version_id
 group by package_name, package_version
 order by max_upload_time desc nulls last;
 ```
