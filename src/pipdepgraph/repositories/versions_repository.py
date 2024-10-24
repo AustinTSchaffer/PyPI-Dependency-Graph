@@ -1,5 +1,4 @@
 from typing import AsyncIterable
-import textwrap
 import itertools
 
 from psycopg_pool import AsyncConnectionPool
@@ -176,26 +175,24 @@ class VersionsRepository:
         package_version: str | None = None,
         has_package_release: bool | None = None,
     ) -> AsyncIterable[models.Version]:
-        query = textwrap.dedent(
-            f"""
-                select
-                    kv.version_id,
-                    kv.package_name,
-                    kv.package_version,
-                    kv.date_discovered,
-                    kv.epoch,
-                    kv.package_release,
-                    kv.pre_0,
-                    kv.pre_1,
-                    kv.post,
-                    kv.dev,
-                    kv."local",
-                    kv.is_prerelease,
-                    kv.is_postrelease,
-                    kv.is_devrelease
-                from {table_names.VERSIONS} kv
-            """
-        )
+        query = f"""
+        select
+            kv.version_id,
+            kv.package_name,
+            kv.package_version,
+            kv.date_discovered,
+            kv.epoch,
+            kv.package_release,
+            kv.pre_0,
+            kv.pre_1,
+            kv.post,
+            kv.dev,
+            kv."local",
+            kv.is_prerelease,
+            kv.is_postrelease,
+            kv.is_devrelease
+        from {table_names.VERSIONS} kv
+        """
 
         has_where = False
         params = []

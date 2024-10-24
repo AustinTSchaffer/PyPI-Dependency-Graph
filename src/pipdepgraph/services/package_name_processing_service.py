@@ -32,16 +32,16 @@ class PackageNameProcessingService:
         self,
         *,
         db_pool: AsyncConnectionPool,
-        kpnr: package_names_repository.PackageNamesRepository,
-        kvr: versions_repository.VersionsRepository,
-        vdr: distributions_repository.DistributionsRepository,
+        pnr: package_names_repository.PackageNamesRepository,
+        vr: versions_repository.VersionsRepository,
+        dr: distributions_repository.DistributionsRepository,
         pypi: pypi_api.PypiApi,
         rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None,
     ):
         self.db_pool = db_pool
-        self.package_names_repo = kpnr
-        self.versions_repo = kvr
-        self.distributions_repo = vdr
+        self.package_names_repo = pnr
+        self.versions_repo = vr
+        self.distributions_repo = dr
         self.pypi = pypi
         self.rabbitmq_publish_service = rmq_pub
 

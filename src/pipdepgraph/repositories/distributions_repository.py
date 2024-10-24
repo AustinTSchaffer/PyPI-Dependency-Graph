@@ -1,5 +1,4 @@
 from typing import AsyncIterable
-import textwrap
 import itertools
 
 from psycopg_pool import AsyncConnectionPool
@@ -28,22 +27,20 @@ class DistributionsRepository:
             distributions,
             constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
         ):
-            query = textwrap.dedent(
-                f"""
-                    insert into {table_names.DISTRIBUTIONS}
-                    (
-                        version_id,
-                        package_type,
-                        python_version,
-                        requires_python,
-                        upload_time,
-                        yanked,
-                        package_filename,
-                        package_url
-                    )
-                    values
-                """
+            query = f"""
+            insert into {table_names.DISTRIBUTIONS}
+            (
+                version_id,
+                package_type,
+                python_version,
+                requires_python,
+                upload_time,
+                yanked,
+                package_filename,
+                package_url
             )
+            values
+            """
 
             query += ",".join(
                 "( %s, %s, %s, %s, %s, %s, %s, %s ) "
@@ -52,22 +49,20 @@ class DistributionsRepository:
             query += " on conflict do nothing "
 
             if return_inserted:
-                query += textwrap.dedent(
-                    """
-                        returning
-                            distribution_id,
-                            version_id,
-                            package_type,
-                            python_version,
-                            requires_python,
-                            upload_time,
-                            yanked,
-                            package_filename,
-                            package_url,
-                            processed,
-                            metadata_file_size
-                    """
-                )
+                query += """
+                returning
+                    distribution_id,
+                    version_id,
+                    package_type,
+                    python_version,
+                    requires_python,
+                    upload_time,
+                    yanked,
+                    package_filename,
+                    package_url,
+                    processed,
+                    metadata_file_size
+                """
 
             params = [None] * PARAMS_PER_INSERT * len(distributions)
 
@@ -118,16 +113,14 @@ class DistributionsRepository:
         if not distributions:
             return
 
-        query = textwrap.dedent(
-            f"""
-                update {table_names.DISTRIBUTIONS}
-                set
-                    processed = %s,
-                    metadata_file_size = coalesce(%s, metadata_file_size)
-                where
-                    distribution_id = %s
-            """
-        )
+        query = f"""
+        update {table_names.DISTRIBUTIONS}
+        set
+            processed = %s,
+            metadata_file_size = coalesce(%s, metadata_file_size)
+        where
+            distribution_id = %s
+        """
 
         params_seq = [
             (vd.processed, vd.metadata_file_size, vd.distribution_id)
@@ -156,43 +149,45 @@ class DistributionsRepository:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
-            query = textwrap.dedent(
-                f"""
-                    select
-                        vd.distribution_id,
-                        vd.version_id,
-                        vd.package_type,
-                        vd.python_version,
-                        vd.requires_python,
-                        vd.upload_time,
-                        vd.yanked,
-                        vd.package_filename,
-                        vd.package_url,
-                        vd.metadata_file_size,
-                        vd.processed
-                    from {table_names.DISTRIBUTIONS} vd
-                    {"" if package_name is None else f" left join {table_names.VERSIONS} kv on kv.version_id = vd.version_id "}
-                    {"" if package_name is None else f" left join {table_names.PACKAGE_NAMES} kpn on kpn.package_name = kv.package_name "}
-                """
-            )
+            query = f"""
+            select
+                vd.distribution_id,
+                vd.version_id,
+                vd.package_type,
+                vd.python_version,
+                vd.requires_python,
+                vd.upload_time,
+                vd.yanked,
+                vd.package_filename,
+                vd.package_url,
+                vd.metadata_file_size,
+                vd.processed
+            from {table_names.DISTRIBUTIONS} vd
+            {"" if package_name is None else f" left join {table_names.VERSIONS} kv on kv.version_id = vd.version_id "}
+            {"" if package_name is None else f" left join {table_names.PACKAGE_NAMES} kpn on kpn.package_name = kv.package_name "}
+            """
 
+            has_where = False
             params = []
+
             if package_name is not None:
                 _package_name = (
                     package_name
                     if isinstance(package_name, str)
                     else package_name.package_name
                 )
-                if not params:
+                if not has_where:
                     query += " where "
+                    has_where = True
                 else:
                     query += " and "
                 query += " kpn.package_name = %s "
                 params.append(_package_name)
 
             if processed is not None:
-                if not params:
+                if not has_where:
                     query += " where "
+                    has_where = True
                 else:
                     query += " and "
                 query += " vd.processed = %s "

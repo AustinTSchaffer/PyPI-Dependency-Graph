@@ -24,7 +24,7 @@ async def main():
         common.initialize_client_session() as client,
     ):
         logger.info("Initializing repositories")
-        kpnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = package_names_repository.PackageNamesRepository(db_pool)
 
         logger.info("Initializing RabbitMQ session")
         with (
@@ -46,7 +46,7 @@ async def main():
             package_list = await result.json()
             package_names = [row["project"] for row in package_list["rows"]]
 
-            await kpnr.insert_package_names(package_names)
+            await pnr.insert_package_names(package_names)
 
             for package_name in package_names:
                 rmq_pub.publish_package_name(package_name, channel=channel)

@@ -1,6 +1,5 @@
 import logging
 import sys
-import textwrap
 
 import aiohttp
 import pika
@@ -21,15 +20,13 @@ def initialize_async_connection_pool(
     max_pool_size=10,
 ) -> AsyncConnectionPool:
 
-    connection_string = textwrap.dedent(
-        f"""
-            dbname={db}
-            user={username}
-            password={password}
-            host={host}
-            port={port}
-        """
-    )
+    connection_string = f"""
+    dbname={db}
+    user={username}
+    password={password}
+    host={host}
+    port={port}
+    """
 
     return AsyncConnectionPool(
         conninfo=connection_string, max_size=max_pool_size,

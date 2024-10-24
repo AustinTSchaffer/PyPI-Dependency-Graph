@@ -36,9 +36,9 @@ async def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        kpnr = package_names_repository.PackageNamesRepository(db_pool)
-        kvr = versions_repository.VersionsRepository(db_pool)
-        vdr = distributions_repository.DistributionsRepository(db_pool)
+        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        vr = versions_repository.VersionsRepository(db_pool)
+        dr = distributions_repository.DistributionsRepository(db_pool)
 
         logger.info("Initializing pypi_api.PypiApi")
         pypi = pypi_api.PypiApi(session)
@@ -52,9 +52,9 @@ async def main():
             "Initializing package_name_processing_service.PackageNameProcessingService"
         )
         pnps = package_name_processing_service.PackageNameProcessingService(
-            kpnr=kpnr,
-            kvr=kvr,
-            vdr=vdr,
+            pnr=pnr,
+            vr=vr,
+            dr=dr,
             pypi=pypi,
             db_pool=db_pool,
             rmq_pub=rmq_pub,

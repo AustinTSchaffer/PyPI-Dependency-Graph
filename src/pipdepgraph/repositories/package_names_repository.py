@@ -1,7 +1,6 @@
 from typing import AsyncIterable, List
 import datetime
 import itertools
-import textwrap
 
 import packaging.utils
 from psycopg_pool import AsyncConnectionPool
@@ -124,16 +123,14 @@ class PackageNamesRepository:
         _package_name = packaging.utils.canonicalize_name(_package_name)
 
         params = [_package_name]
-        query = textwrap.dedent(
-            f"""
-                select
-                    kpn.package_name,
-                    kpn.date_discovered,
-                    kpn.date_last_checked
-                from {table_names.PACKAGE_NAMES} kpn
-                where kpn.package_name = %s
-            """
-        )
+        query = f"""
+        select
+            kpn.package_name,
+            kpn.date_discovered,
+            kpn.date_last_checked
+        from {table_names.PACKAGE_NAMES} kpn
+        where kpn.package_name = %s
+        """
 
         async with (
             self.db_pool.connection() as conn,
@@ -160,10 +157,13 @@ class PackageNamesRepository:
         ):
             query = f"select kpn.package_name, kpn.date_discovered, kpn.date_last_checked from {table_names.PACKAGE_NAMES} kpn"
 
+            has_where = False
             params = []
+
             if date_last_checked_before is not None:
-                if not params:
+                if not has_where:
                     query += " where "
+                    has_where = True
                 else:
                     query += " and "
                 query += (

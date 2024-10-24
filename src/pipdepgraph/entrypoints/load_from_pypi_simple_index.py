@@ -26,7 +26,7 @@ async def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        kpnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = package_names_repository.PackageNamesRepository(db_pool)
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing RabbitMQ session")
@@ -57,7 +57,7 @@ async def main():
                     break
 
             logger.info(f"Inserting {len(package_names)} package names into Postgres")
-            packages_inserted = await kpnr.insert_package_names(
+            packages_inserted = await pnr.insert_package_names(
                 package_names,
                 return_inserted=constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED,
             )
