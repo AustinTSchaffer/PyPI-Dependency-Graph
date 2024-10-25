@@ -22,58 +22,59 @@ class RequirementsRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
-    async def _insert_requirements(
-        self,
-        requirements: list[models.Requirement],
-        cursor: AsyncCursor,
-    ):
-        if not requirements:
-            return
-
-        PARAMS_PER_INSERT = 5
-        for requirements in itertools.batched(
-            requirements,
-            constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
-        ):
-            query = f"""
-            insert into {table_names.REQUIREMENTS}
-            (
-                distribution_id,
-                extras,
-                dependency_name,
-                dependency_extras,
-                version_constraint
-            )
-            values
-            """
-
-            query += ",".join(
-                " ( %s, %s, %s, %s, %s ) " for _ in range(len(requirements))
-            )
-            query += " on conflict do nothing; "
-
-            params = [None] * PARAMS_PER_INSERT * len(requirements)
-            offset = 0
-            for dd in requirements:
-                params[offset + 0] = dd.distribution_id
-                params[offset + 1] = dd.extras
-                params[offset + 2] = dd.dependency_name
-                params[offset + 3] = dd.dependency_extras
-                params[offset + 4] = dd.version_constraint
-                offset += PARAMS_PER_INSERT
-
-            await cursor.execute(query, params)
-
     async def insert_requirements(
         self,
         requirements: list[models.Requirement],
         cursor: AsyncCursor | None = None,
     ):
+        """
+        Inserts a list of requirement records into the database, batching them
+        into chunks. Does nothing on conflict.
+        """
+
+        if not requirements:
+            return
+
+        async def _insert_requirements(cursor: AsyncCursor):
+            PARAMS_PER_INSERT = 5
+            for requirement_batch in itertools.batched(
+                requirements,
+                constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
+            ):
+                query = f"""
+                insert into {table_names.REQUIREMENTS}
+                (
+                    distribution_id,
+                    extras,
+                    dependency_name,
+                    dependency_extras,
+                    version_constraint
+                )
+                values
+                """
+
+                query += ",".join(
+                    " ( %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
+                )
+                query += " on conflict do nothing; "
+
+                params = [None] * PARAMS_PER_INSERT * len(requirement_batch)
+                offset = 0
+                for req in requirement_batch:
+                    params[offset + 0] = req.distribution_id
+                    params[offset + 1] = req.extras
+                    params[offset + 2] = req.dependency_name
+                    params[offset + 3] = req.dependency_extras
+                    params[offset + 4] = req.version_constraint
+                    offset += PARAMS_PER_INSERT
+
+                await cursor.execute(query, params)
+
         if cursor:
-            await self._insert_requirements(requirements, cursor)
+            await _insert_requirements(cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._insert_requirements(requirements, cursor)
+                await _insert_requirements(cursor)
                 await cursor.execute("commit;")
 
     async def iter_requirements(
@@ -84,7 +85,10 @@ class RequirementsRepository:
         dist_processed: bool | None = None,
         output_as_dict=False,
     ) -> AsyncIterable[RequirementResult | dict]:
-        """ """
+        """
+        Iterates over a list of requirements records, returning each
+        requirement record, along with all of the 
+        """
 
         async with (
             self.db_pool.connection() as conn,
@@ -92,36 +96,35 @@ class RequirementsRepository:
         ):
             query = f"""
             select
-                kpn.package_name        package_name,
-                kpn.date_discovered     date_discovered,
-                kpn.date_last_checked   date_last_checked,
+                name.package_name      package_name,
+                name.date_discovered   date_discovered,
+                name.date_last_checked date_last_checked,
 
-                kv.version_id           version_id,
-                kv.version_id           version_id,
-                kv.package_version      package_version,
-                kv.package_release      package_release,
-                kv.date_discovered      date_discovered,
+                version.version_id      version_id,
+                version.package_version package_version,
+                version.package_release package_release,
+                version.date_discovered date_discovered,
 
-                vd.distribution_id      distribution_id,
-                vd.package_type         package_type,
-                vd.python_version       python_version,
-                vd.requires_python      requires_python,
-                vd.upload_time          upload_time,
-                vd.yanked               yanked,
-                vd.package_filename     package_filename,
-                vd.package_url          package_url,
-                vd.metadata_file_size   metadata_file_size,
-                vd.processed            processed,
+                dist.distribution_id    distribution_id,
+                dist.package_type       package_type,
+                dist.python_version     python_version,
+                dist.requires_python    requires_python,
+                dist.upload_time        upload_time,
+                dist.yanked             yanked,
+                dist.package_filename   package_filename,
+                dist.package_url        package_url,
+                dist.metadata_file_size metadata_file_size,
+                dist.processed          processed,
 
-                dd.extras               extras,
-                dd.dependency_name      dependency_name,
-                dd.dependency_extras    dependency_extras,
-                dd.version_constraint   version_constraint
+                req.extras             extras,
+                req.dependency_name    dependency_name,
+                req.dependency_extras  dependency_extras,
+                req.version_constraint version_constraint
 
-            from {table_names.PACKAGE_NAMES} kpn
-            join {table_names.VERSIONS} kv on kv.package_name = kpn.package_name
-            join {table_names.DISTRIBUTIONS} vd on vd.version_id = kv.version_id
-            join {table_names.REQUIREMENTS} dd on dd.distribution_id = vd.distribution_id
+            from {table_names.PACKAGE_NAMES} name
+            join {table_names.VERSIONS} version on version.package_name = name.package_name
+            join {table_names.DISTRIBUTIONS} dist on dist.version_id = version.version_id
+            join {table_names.REQUIREMENTS} req on req.distribution_id = dist.distribution_id
             """
 
             has_where = False
@@ -133,7 +136,7 @@ class RequirementsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " (kv.package_name = %s) "
+                query += " (version.package_name = %s) "
                 params.append(package_name)
 
             if package_version is not None:
@@ -142,7 +145,7 @@ class RequirementsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " (kv.package_version = %s) "
+                query += " (version.package_version = %s) "
                 params.append(package_version)
 
             if dist_package_type is not None:
@@ -151,7 +154,7 @@ class RequirementsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " (vd.package_type = %s) "
+                query += " (dist.package_type = %s) "
                 params.append(dist_package_type)
 
             if dist_processed is not None:
@@ -160,7 +163,7 @@ class RequirementsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " (vd.processed = %s) "
+                query += " (dist.processed = %s) "
                 params.append(dist_processed)
 
             await cursor.execute(query, params)

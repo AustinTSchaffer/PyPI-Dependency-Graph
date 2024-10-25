@@ -13,77 +13,6 @@ class DistributionsRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
 
-    async def _insert_distributions(
-        self,
-        distributions: list[models.Distribution],
-        cursor: AsyncCursor,
-        return_inserted: bool = False,
-    ) -> list[models.Distribution]:
-        if not distributions:
-            return []
-
-        PARAMS_PER_INSERT = 8
-        for distributions in itertools.batched(
-            distributions,
-            constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
-        ):
-            query = f"""
-            insert into {table_names.DISTRIBUTIONS}
-            (
-                version_id,
-                package_type,
-                python_version,
-                requires_python,
-                upload_time,
-                yanked,
-                package_filename,
-                package_url
-            )
-            values
-            """
-
-            query += ",".join(
-                "( %s, %s, %s, %s, %s, %s, %s, %s ) "
-                for _ in range(len(distributions))
-            )
-            query += " on conflict do nothing "
-
-            if return_inserted:
-                query += """
-                returning
-                    distribution_id,
-                    version_id,
-                    package_type,
-                    python_version,
-                    requires_python,
-                    upload_time,
-                    yanked,
-                    package_filename,
-                    package_url,
-                    processed,
-                    metadata_file_size
-                """
-
-            params = [None] * PARAMS_PER_INSERT * len(distributions)
-
-            offset = 0
-            for vd in distributions:
-                params[offset + 0] = vd.version_id
-                params[offset + 1] = vd.package_type
-                params[offset + 2] = vd.python_version
-                params[offset + 3] = vd.requires_python
-                params[offset + 4] = vd.upload_time
-                params[offset + 5] = vd.yanked
-                params[offset + 6] = vd.package_filename
-                params[offset + 7] = vd.package_url
-                offset += PARAMS_PER_INSERT
-
-            await cursor.execute(query, params)
-            if return_inserted:
-                rows = await cursor.fetchall()
-                return [models.Distribution(**row) for row in rows]
-            else:
-                return []
 
     async def insert_distributions(
         self,
@@ -91,54 +20,127 @@ class DistributionsRepository:
         cursor: AsyncCursor | None = None,
         return_inserted: bool = False,
     ) -> list[models.Distribution]:
+        """
+        Inserts the list of distrubutions into the database. Inserts the records with
+        "on conflict do nothing". If `return_inserted` is specified, returns the list
+        of distributions that were actually inserted.
+        """
+
+        if not distributions:
+            return []
+
+        async def _insert_distributions(cursor: AsyncCursor) -> list[models.Distribution]:
+            PARAMS_PER_INSERT = 8
+            for distribution_batch in itertools.batched(
+                distributions,
+                constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
+            ):
+                query = f"""
+                insert into {table_names.DISTRIBUTIONS}
+                (
+                    version_id,
+                    package_type,
+                    python_version,
+                    requires_python,
+                    upload_time,
+                    yanked,
+                    package_filename,
+                    package_url
+                )
+                values
+                """
+
+                query += ",".join(
+                    "( %s, %s, %s, %s, %s, %s, %s, %s ) "
+                    for _ in range(len(distribution_batch))
+                )
+                query += " on conflict do nothing "
+
+                if return_inserted:
+                    query += """
+                    returning
+                        distribution_id,
+                        version_id,
+                        package_type,
+                        python_version,
+                        requires_python,
+                        upload_time,
+                        yanked,
+                        package_filename,
+                        package_url,
+                        processed,
+                        metadata_file_size
+                    """
+
+                params = [None] * PARAMS_PER_INSERT * len(distribution_batch)
+
+                offset = 0
+                for vd in distribution_batch:
+                    params[offset + 0] = vd.version_id
+                    params[offset + 1] = vd.package_type
+                    params[offset + 2] = vd.python_version
+                    params[offset + 3] = vd.requires_python
+                    params[offset + 4] = vd.upload_time
+                    params[offset + 5] = vd.yanked
+                    params[offset + 6] = vd.package_filename
+                    params[offset + 7] = vd.package_url
+                    offset += PARAMS_PER_INSERT
+
+                await cursor.execute(query, params)
+                if return_inserted:
+                    rows = await cursor.fetchall()
+                    return [models.Distribution(**row) for row in rows]
+                else:
+                    return []
+
         if cursor:
-            return await self._insert_distributions(
-                distributions, cursor, return_inserted=return_inserted
-            )
+            return await _insert_distributions(cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor(
                 row_factory=dict_row
             ) as cursor:
-                result = await self._insert_distributions(
-                    distributions, cursor, return_inserted=return_inserted
-                )
+                result = await _insert_distributions(cursor)
                 await cursor.execute("commit;")
                 return result
 
-    async def _update_distributions(
-        self,
-        distributions: list[models.Distribution],
-        cursor: AsyncCursor,
-    ):
-        if not distributions:
-            return
-
-        query = f"""
-        update {table_names.DISTRIBUTIONS}
-        set
-            processed = %s,
-            metadata_file_size = coalesce(%s, metadata_file_size)
-        where
-            distribution_id = %s
-        """
-
-        params_seq = [
-            (vd.processed, vd.metadata_file_size, vd.distribution_id)
-            for vd in distributions
-        ]
-
-        await cursor.executemany(query, params_seq)
 
     async def update_distributions(
         self,
         distributions: list[models.Distribution],
         cursor: AsyncCursor | None = None,
     ):
+        """
+        Updates the list of distrubutions in the database. Currently
+        only supports updating the "processed" and "metadata_file_size"
+        properties.
+        """
+
+        if not distributions:
+            return
+
+        async def _update_distributions(cursor: AsyncCursor):
+
+            query = f"""
+            update {table_names.DISTRIBUTIONS}
+            set
+                processed = %s,
+                metadata_file_size = coalesce(%s, metadata_file_size)
+            where
+                distribution_id = %s
+            """
+
+            params_seq = [
+                (vd.processed, vd.metadata_file_size, vd.distribution_id)
+                for vd in distributions
+            ]
+
+            await cursor.executemany(query, params_seq)
+
         if cursor:
-            await self._update_distributions(distributions, cursor)
+            await _update_distributions(cursor)
         else:
             async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._update_distributions(distributions, cursor)
+                await _update_distributions(cursor)
                 await cursor.execute("commit;")
 
     async def iter_distributions(
