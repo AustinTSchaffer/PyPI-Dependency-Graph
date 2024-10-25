@@ -88,7 +88,8 @@ create table pypi_packages.requirements (
     extras text,
     dependency_name text not null,
     dependency_extras text null,
-    version_constraint text null
+    version_constraint text null,
+    dependency_extras_arr text[] not null
 );
 
 alter table pypi_packages.requirements
