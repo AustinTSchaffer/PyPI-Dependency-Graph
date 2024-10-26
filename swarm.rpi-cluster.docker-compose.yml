@@ -113,6 +113,7 @@ services:
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
       DIST_ID_HASH_MOD_FILTER: "{{.Task.Slot}}"
+      DIST_ID_HASH_MOD_BASE: 16
     depends_on:
       - db
       - broker
