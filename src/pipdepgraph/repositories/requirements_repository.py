@@ -199,10 +199,5 @@ class RequirementsRepository:
                 query += "mod(get_byte(pypi_packages.digest(distribution_id::text, %s::text), 0), %s) = %s"
                 params.extend((hash_alg, mod_base, mod_val))
 
-            cursor.arraysize = 100_000
-            await cursor.execute(query, params)
-            records = await cursor.fetchmany()
-            while len(records) > 0:
-                for record in records:
-                    yield models.Requirement.from_dict(record)
-                records = await cursor.fetchmany()
+            async for record in cursor.stream(query, params, size=10_000):
+                yield models.Requirement.from_dict(record)
