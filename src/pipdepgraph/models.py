@@ -139,18 +139,22 @@ class Distribution:
 
 @dataclasses.dataclass
 class Requirement:
+    requirement_id: str | None
     distribution_id: str
     extras: Optional[str]
     dependency_name: str
     dependency_extras: Optional[str]
     version_constraint: Optional[str]
+    dependency_extras_arr: Optional[list[str]]
 
     @classmethod
     def from_dict(cls, data: dict) -> "Requirement":
         return cls(
+            requirement_id=data.get("requirement_id", None),
             distribution_id=data.get("distribution_id", None),
             extras=data.get("extras", None),
             dependency_name=data.get("dependency_name", None),
             dependency_extras=data.get("dependency_extras", None),
             version_constraint=data.get("version_constraint", None),
+            dependency_extras_arr=data.get("dependency_extras_arr", None),
         )

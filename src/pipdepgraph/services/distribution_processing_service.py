@@ -105,6 +105,7 @@ class DistributionProcessingService:
                                     dependency.name, validate=True
                                 ),
                                 version_constraint=str(dependency.specifier),
+                                dependency_extras_arr=list(dependency.extras),
                             )
                         )
 

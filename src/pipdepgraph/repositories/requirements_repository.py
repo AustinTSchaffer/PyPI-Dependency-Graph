@@ -10,14 +10,6 @@ from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
 
 
-@dataclasses.dataclass
-class RequirementResult:
-    package_name: models.PackageName
-    version: models.Version
-    distribution: models.Distribution
-    requirement: models.Requirement
-
-
 class RequirementsRepository:
     def __init__(self, db_pool: AsyncConnectionPool):
         self.db_pool = db_pool
@@ -55,7 +47,7 @@ class RequirementsRepository:
                 """
 
                 query += ",".join(
-                    " ( %s, %s, %s, %s, %s, regexp_split_to_array(%s, ',') ) " for _ in range(len(requirement_batch))
+                    " ( %s, %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
                 )
                 query += " on conflict do nothing; "
 
@@ -67,7 +59,7 @@ class RequirementsRepository:
                     params[offset + 2] = req.dependency_name
                     params[offset + 3] = req.dependency_extras
                     params[offset + 4] = req.version_constraint
-                    params[offset + 5] = req.dependency_extras
+                    params[offset + 5] = req.dependency_extras_arr
                     offset += PARAMS_PER_INSERT
 
                 await cursor.execute(query, params)
@@ -79,17 +71,66 @@ class RequirementsRepository:
                 await _insert_requirements(cursor)
                 await cursor.execute("commit;")
 
+    async def update_requirement(
+        self,
+        requirement: models.Requirement,
+        cursor: AsyncCursor | None = None,
+    ) -> None:
+        async def _update_requirement(cursor: AsyncCursor):
+            if requirement.requirement_id:
+                sql = f"""
+                update {table_names.REQUIREMENTS} set
+                    dependency_extras_arr = %s
+                where
+                    requirement_id = %s
+                ;"""
+
+                params = (
+                    requirement.dependency_extras_arr,
+                    requirement.requirement_id,
+                )
+
+                await cursor.execute(sql, params)
+            else:
+                sql = f"""
+                update {table_names.REQUIREMENTS} set
+                    requirement_id = gen_random_uuid(),
+                    dependency_extras_arr = %s
+                where
+                    distribution_id = %s and
+                    extras = %s and
+                    dependency_name = %s and
+                    dependency_extras = %s
+                ;"""
+
+                params = (
+                    requirement.dependency_extras_arr,
+                    requirement.distribution_id,
+                    requirement.extras,
+                    requirement.dependency_name,
+                    requirement.dependency_extras,
+                )
+
+                await cursor.execute(sql, params)
+
+        if cursor:
+            await _update_requirement(cursor)
+        else:
+            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                await _update_requirement(cursor)
+                await cursor.execute("commit;")
+
     async def iter_requirements(
         self,
         package_name: str | None = None,
         package_version: str | None = None,
         dist_package_type: str | None = None,
         dist_processed: bool | None = None,
-        output_as_dict=False,
-    ) -> AsyncIterable[RequirementResult | dict]:
+        dist_id_hash_mod_filter: tuple[str, int, int] | None = None,
+    ) -> AsyncIterable[models.Requirement]:
         """
         Iterates over a list of requirements records, returning each
-        requirement record, along with all of the 
+        requirement record.
         """
 
         async with (
@@ -98,35 +139,14 @@ class RequirementsRepository:
         ):
             query = f"""
             select
-                name.package_name      package_name,
-                name.date_discovered   date_discovered,
-                name.date_last_checked date_last_checked,
-
-                version.version_id      version_id,
-                version.package_version package_version,
-                version.package_release package_release,
-                version.date_discovered date_discovered,
-
-                dist.distribution_id    distribution_id,
-                dist.package_type       package_type,
-                dist.python_version     python_version,
-                dist.requires_python    requires_python,
-                dist.upload_time        upload_time,
-                dist.yanked             yanked,
-                dist.package_filename   package_filename,
-                dist.package_url        package_url,
-                dist.metadata_file_size metadata_file_size,
-                dist.processed          processed,
-
-                req.extras             extras,
-                req.dependency_name    dependency_name,
-                req.dependency_extras  dependency_extras,
-                req.version_constraint version_constraint
-
-            from {table_names.PACKAGE_NAMES} name
-            join {table_names.VERSIONS} version on version.package_name = name.package_name
-            join {table_names.DISTRIBUTIONS} dist on dist.version_id = version.version_id
-            join {table_names.REQUIREMENTS} req on req.distribution_id = dist.distribution_id
+                req.requirement_id         requirement_id,
+                req.distribution_id        distribution_id,
+                req.extras                 extras,
+                req.dependency_name        dependency_name,
+                req.dependency_extras      dependency_extras,
+                req.version_constraint     version_constraint,
+                req.dependency_extras_arr  dependency_extras_arr
+            FROM {table_names.REQUIREMENTS} req
             """
 
             has_where = False
@@ -168,17 +188,16 @@ class RequirementsRepository:
                 query += " (dist.processed = %s) "
                 params.append(dist_processed)
 
+            if dist_id_hash_mod_filter is not None:
+                hash_alg, mod_base, mod_val = dist_id_hash_mod_filter
+                if not has_where:
+                    query += " where "
+                    has_where = True
+                else:
+                    query += " and "
+                query += "mod(get_byte(pypi_packages.digest(distribution_id::text, %s::text), 0), %s) = %s"
+                params.extend((hash_alg, mod_base, mod_val))
+
             await cursor.execute(query, params)
             async for record in cursor:
-                yield (
-                    record
-                    if output_as_dict
-                    else RequirementResult(
-                        package_name=models.PackageName.from_dict(record),
-                        version=models.Version.from_dict(record),
-                        distribution=models.Distribution.from_dict(
-                            record
-                        ),
-                        requirement=models.Requirement.from_dict(record),
-                    )
-                )
+                yield models.Requirement.from_dict(record)
