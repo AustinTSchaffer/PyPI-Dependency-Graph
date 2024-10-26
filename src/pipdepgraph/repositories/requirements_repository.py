@@ -36,6 +36,7 @@ class RequirementsRepository:
                 query = f"""
                 insert into {table_names.REQUIREMENTS}
                 (
+                    requirement_id,
                     distribution_id,
                     extras,
                     dependency_name,
@@ -47,7 +48,7 @@ class RequirementsRepository:
                 """
 
                 query += ",".join(
-                    " ( %s, %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
+                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
                 )
                 query += " on conflict do nothing; "
 
