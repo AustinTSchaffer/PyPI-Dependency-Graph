@@ -94,6 +94,29 @@ services:
       - db
       - broker
 
+  requirements_reprocessor:
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 16
+      placement:
+        constraints:
+          - node.labels.role==app
+    command: ["python", "src/pipdepgraph/entrypoints/reprocess_requirements.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      DIST_ID_HASH_MOD_FILTER: "{{.Task.Slot}}"
+    depends_on:
+      - db
+      - broker
+
   pypi_loader:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
     deploy:
