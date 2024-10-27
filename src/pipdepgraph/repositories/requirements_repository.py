@@ -102,7 +102,8 @@ class RequirementsRepository:
                     distribution_id = %s and
                     (extras = %s or (%s = '' and extras is null)) and
                     dependency_name = %s and
-                    dependency_extras = %s
+                    dependency_extras = %s and
+                    version_constraint = %s
                 ;"""
 
                 params = (
@@ -112,6 +113,7 @@ class RequirementsRepository:
                     requirement.extras, requirement.extras,
                     requirement.dependency_name,
                     requirement.dependency_extras,
+                    requirement.version_constraint,
                 )
 
                 await cursor.execute(sql, params)
