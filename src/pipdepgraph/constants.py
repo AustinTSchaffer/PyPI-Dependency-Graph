@@ -38,13 +38,13 @@ DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES = bool(
 )
 
 UPL_LOAD_PACKAGE_NAMES = bool(
-    os.getenv("UPL_LOAD_PACKAGE_NAMES", "true").strip().lower() == "true"
+    os.getenv("UPL_LOAD_PACKAGE_NAMES", "false").strip().lower() == "true"
 )
 UPL_LOAD_DISTRIBUTIONS = bool(
-    os.getenv("UPL_LOAD_DISTRIBUTIONS", "true").strip().lower() == "true"
+    os.getenv("UPL_LOAD_DISTRIBUTIONS", "false").strip().lower() == "true"
 )
 UPL_LOAD_INCOMPLETE_REQUIREMENTS = bool(
-    os.getenv("UPL_LOAD_INCOMPLETE_REQUIREMENTS", "true").strip().lower() == "true"
+    os.getenv("UPL_LOAD_INCOMPLETE_REQUIREMENTS", "false").strip().lower() == "true"
 )
 
 PACKAGE_RELEASE_TERM_MAX_SIZE = 9_223_372_036_854_775_807  # Postgres bigint max size

@@ -153,7 +153,7 @@ class PackageNamesRepository:
     ) -> AsyncIterable[models.PackageName]:
         async with (
             self.db_pool.connection() as conn,
-            conn.cursor(row_factory=dict_row) as cursor,
+            conn.cursor(row_factory=dict_row, name='iter_package_names') as cursor,
         ):
             query = f"select kpn.package_name, kpn.date_discovered, kpn.date_last_checked from {table_names.PACKAGE_NAMES} kpn"
 

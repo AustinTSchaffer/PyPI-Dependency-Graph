@@ -149,7 +149,7 @@ class DistributionsRepository:
         package_name: str | models.PackageName | None = None,
     ) -> AsyncIterable[models.Distribution]:
         async with self.db_pool.connection() as conn, conn.cursor(
-            row_factory=dict_row
+            row_factory=dict_row, name='iter_distributions'
         ) as cursor:
             query = f"""
             select

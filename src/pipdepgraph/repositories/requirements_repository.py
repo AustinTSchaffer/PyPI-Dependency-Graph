@@ -137,7 +137,7 @@ class RequirementsRepository:
 
         async with (
             self.db_pool.connection() as conn,
-            conn.cursor(row_factory=dict_row) as cursor,
+            conn.cursor(row_factory=dict_row, name='iter_requirements') as cursor,
         ):
             query = f"""
             select
@@ -212,5 +212,8 @@ class RequirementsRepository:
                     query += " dependency_extras_arr is not null "
 
             await cursor.execute(query, params)
-            async for record in cursor:
-                yield models.Requirement.from_dict(record)
+            records = await cursor.fetchmany(size=50_000)
+            while records:
+                for record in records:
+                    yield models.Requirement.from_dict(record)
+                records = await cursor.fetchmany(size=50_000)
