@@ -100,7 +100,7 @@ class RequirementsRepository:
                     extras = %s
                 where
                     distribution_id = %s and
-                    (extras = %s or (%s = '' and extras is null) and
+                    (extras = %s or (%s = '' and extras is null)) and
                     dependency_name = %s and
                     dependency_extras = %s
                 ;"""
