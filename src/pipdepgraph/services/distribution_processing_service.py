@@ -98,7 +98,7 @@ class DistributionProcessingService:
                                 extras=(
                                     str(dependency.marker)
                                     if dependency.marker
-                                    else None
+                                    else ""
                                 ),
                                 dependency_extras=",".join(dependency.extras),
                                 dependency_name=packaging.utils.canonicalize_name(

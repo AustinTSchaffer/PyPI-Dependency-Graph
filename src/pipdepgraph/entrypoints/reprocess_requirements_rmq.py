@@ -53,9 +53,13 @@ async def main():
             try:
                 requirement = requirements_queue.get(timeout=5.0)
 
+                if requirement.extras is None:
+                    requirement.extras = ""
+
                 requirement.dependency_extras_arr = []
                 if requirement.dependency_extras:
                     requirement.dependency_extras_arr = requirement.dependency_extras.split(',')
+
                 logger.info(f"Updating requirement: {requirement}")
                 await rr.update_requirement(requirement, cursor=edit_cursor)
                 await edit_cursor.execute("commit;")

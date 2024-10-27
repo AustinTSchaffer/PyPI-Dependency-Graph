@@ -96,18 +96,20 @@ class RequirementsRepository:
                 sql = f"""
                 update {table_names.REQUIREMENTS} set
                     requirement_id = gen_random_uuid(),
-                    dependency_extras_arr = %s
+                    dependency_extras_arr = %s,
+                    extras = %s
                 where
                     distribution_id = %s and
-                    extras = %s and
+                    (extras = %s or (%s = '' and extras is null) and
                     dependency_name = %s and
                     dependency_extras = %s
                 ;"""
 
                 params = (
                     requirement.dependency_extras_arr,
-                    requirement.distribution_id,
                     requirement.extras,
+                    requirement.distribution_id,
+                    requirement.extras, requirement.extras,
                     requirement.dependency_name,
                     requirement.dependency_extras,
                 )

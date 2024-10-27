@@ -141,7 +141,7 @@ class Distribution:
 class Requirement:
     requirement_id: str | None
     distribution_id: str
-    extras: Optional[str]
+    extras: str | None
     dependency_name: str
     dependency_extras: Optional[str]
     version_constraint: Optional[str]
