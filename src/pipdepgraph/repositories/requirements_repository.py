@@ -128,6 +128,7 @@ class RequirementsRepository:
         dist_package_type: str | None = None,
         dist_processed: bool | None = None,
         dist_id_hash_mod_filter: tuple[str, int, int] | None = None,
+        dependency_extras_arr_is_none: bool = None,
     ) -> AsyncIterable[models.Requirement]:
         """
         Iterates over a list of requirements records, returning each
@@ -198,6 +199,17 @@ class RequirementsRepository:
                     query += " and "
                 query += " mod(get_byte(pypi_packages.digest(distribution_id::text, %s::text), 0), %s) = %s "
                 params.extend((hash_alg, mod_base, mod_val))
+
+            if dependency_extras_arr_is_none is not None:
+                if not has_where:
+                    query += " where "
+                    has_where = True
+                else:
+                    query += " and "
+                if dependency_extras_arr_is_none:
+                    query += " dependency_extras_arr is null "
+                else:
+                    query += " dependency_extras_arr is not null "
 
             async for record in cursor.stream(query, params, size=50_000):
                 yield models.Requirement.from_dict(record)

@@ -28,7 +28,7 @@ async def main():
             hashmodfilter = (DIST_ID_HASH_ALG, DIST_ID_HASH_MOD_BASE, DIST_ID_HASH_MOD_FILTER)
             logger.info(f"Iterating over requirements matching hashmod filter on distribution_id: {hashmodfilter}")
             records_updated = 0
-            async for requirement in rr.iter_requirements(dist_id_hash_mod_filter=hashmodfilter):
+            async for requirement in rr.iter_requirements(dist_id_hash_mod_filter=hashmodfilter, dependency_extras_arr_is_none=True):
                 requirement.dependency_extras_arr = []
                 if requirement.dependency_extras:
                     requirement.dependency_extras_arr = requirement.dependency_extras.split(',')
