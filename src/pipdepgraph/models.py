@@ -158,3 +158,24 @@ class Requirement:
             version_constraint=data.get("version_constraint", None),
             dependency_extras_arr=data.get("dependency_extras_arr", None),
         )
+
+    def to_json(self) -> str:
+        return json.dumps(
+            dict(
+                requirement_id=(
+                    str(self.requirement_id)
+                    if self.requirement_id is not None
+                    else None
+                ),
+                distribution_id=(
+                    str(self.distribution_id)
+                    if self.distribution_id is not None
+                    else None
+                ),
+                extras=self.extras,
+                dependency_name=self.dependency_name,
+                dependency_extras=self.dependency_extras,
+                version_constraint=self.version_constraint,
+                dependency_extras_arr=self.dependency_extras_arr,
+            )
+        )

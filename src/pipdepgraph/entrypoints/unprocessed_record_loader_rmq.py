@@ -15,6 +15,7 @@ from pipdepgraph.entrypoints import common
 from pipdepgraph.repositories import (
     distributions_repository,
     package_names_repository,
+    requirements_repository,
 )
 
 from pipdepgraph.services import (
@@ -35,6 +36,7 @@ async def main():
         logger.info("Initializing repositories")
         pnr = package_names_repository.PackageNamesRepository(db_pool)
         dr = distributions_repository.DistributionsRepository(db_pool)
+        rr = requirements_repository.RequirementsRepository(db_pool)
 
         logger.info("Initializing RabbitMQ session")
         with (
@@ -63,6 +65,11 @@ async def main():
                     logger.debug("Loading Package Name: %s", kpn.package_name)
                     rmq_pub.publish_package_name(kpn, channel=channel)
 
+            if constants.UPL_LOAD_INCOMPLETE_REQUIREMENTS:
+                logger.info("Loading all incomplete requirements records into RabbitMQ")
+                async for req in rr.iter_requirements(dependency_extras_arr_is_none=True):
+                    logger.debug("Loading Requirement: %s", req)
+                    rmq_pub.publish_requirement(req, channel=channel)
 
 if __name__ == "__main__":
     common.initialize_logger()

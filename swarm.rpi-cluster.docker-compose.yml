@@ -103,7 +103,7 @@ services:
       placement:
         constraints:
           - node.labels.role==app
-    command: ["python", "src/pipdepgraph/entrypoints/reprocess_requirements.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/reprocess_requirements_rmq.py"]
     networks:
       - db_net
       - broker_net
@@ -112,8 +112,42 @@ services:
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
-      DIST_ID_HASH_MOD_FILTER: "{{.Task.Slot}}"
-      DIST_ID_HASH_MOD_BASE: 16
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+      RABBITMQ_CTAG_PREFIX: "requirements_reprocessor.{{.Task.Slot}}."
+    depends_on:
+      - db
+      - broker
+
+  unprocessed_record_loader:
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.role==broker
+    command: ["python", "src/pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+
+      UPL_LOAD_DISTRIBUTIONS: "false"
+      UPL_LOAD_PACKAGE_NAMES: "false"
+      UPL_LOAD_INCOMPLETE_REQUIREMENTS: "true"
     depends_on:
       - db
       - broker

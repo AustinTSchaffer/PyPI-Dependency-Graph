@@ -211,5 +211,6 @@ class RequirementsRepository:
                 else:
                     query += " dependency_extras_arr is not null "
 
-            async for record in cursor.stream(query, params, size=50_000):
+            await cursor.execute(query, params)
+            async for record in cursor:
                 yield models.Requirement.from_dict(record)
