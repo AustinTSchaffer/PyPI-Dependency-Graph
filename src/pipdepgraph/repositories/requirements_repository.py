@@ -28,7 +28,7 @@ class RequirementsRepository:
             return
 
         async def _insert_requirements(cursor: AsyncCursor):
-            PARAMS_PER_INSERT = 6
+            PARAMS_PER_INSERT = 7
             for requirement_batch in itertools.batched(
                 requirements,
                 constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
@@ -42,13 +42,14 @@ class RequirementsRepository:
                     dependency_name,
                     dependency_extras,
                     version_constraint,
-                    dependency_extras_arr
+                    dependency_extras_arr,
+                    parsable
                 )
                 values
                 """
 
                 query += ",".join(
-                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
+                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
                 )
                 query += " on conflict do nothing; "
 
@@ -61,6 +62,7 @@ class RequirementsRepository:
                     params[offset + 3] = req.dependency_extras
                     params[offset + 4] = req.version_constraint
                     params[offset + 5] = req.dependency_extras_arr
+                    params[offset + 6] = req.parsable
                     offset += PARAMS_PER_INSERT
 
                 await cursor.execute(query, params)

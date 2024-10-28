@@ -114,8 +114,9 @@ class DistributionProcessingService:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
+
+            requirements: list[models.Requirement] = []
             try:
-                requirements: list[models.Requirement] = []
                 try:
                     for requirement in metadata.requires_dist:
                         requirements.append(DistributionProcessingService.convert_requirement(
