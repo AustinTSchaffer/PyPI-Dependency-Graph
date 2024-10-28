@@ -1,6 +1,7 @@
 import logging
 
 import packaging.utils
+import packaging.requirements
 from psycopg.rows import dict_row
 
 from psycopg_pool import AsyncConnectionPool
@@ -46,6 +47,31 @@ class DistributionProcessingService:
         ):
             await self.process_distribution(distribution)
 
+    @staticmethod
+    def convert_requirement(
+        distribution_id: str,
+        requirement: str | packaging.requirements.Requirement,
+    ) -> models.Requirement:
+        if isinstance(requirement, str):
+            requirement = packaging.requirements.Requirement(requirement)
+
+        return models.Requirement(
+            requirement_id=None,
+            distribution_id=distribution_id,
+            extras=(
+                str(requirement.marker)
+                if requirement.marker
+                else ""
+            ),
+            dependency_extras=",".join(requirement.extras),
+            dependency_name=packaging.utils.canonicalize_name(
+                requirement.name, validate=True
+            ),
+            version_constraint=str(requirement.specifier),
+            dependency_extras_arr=list(requirement.extras),
+            parsable=True,
+        )
+
     async def process_distribution(
         self,
         distribution: models.Distribution,
@@ -90,25 +116,39 @@ class DistributionProcessingService:
         ) as cursor:
             try:
                 requirements: list[models.Requirement] = []
-                if metadata.requires_dist:
-                    for dependency in metadata.requires_dist:
-                        requirements.append(
-                            models.Requirement(
-                                requirement_id=None,
+                try:
+                    for requirement in metadata.requires_dist:
+                        requirements.append(DistributionProcessingService.convert_requirement(
+                            distribution_id=distribution.distribution_id,
+                            requirement=requirement,
+                        ))
+
+                except Exception as ex:
+                    logger.warning("Error while iterating through metadata.requires_dist", exc_info=True)
+                    raw_req_dist = metadata._raw["requires_dist"]
+                    for req_idx in range(len(raw_req_dist)):
+                        try:
+                            requirement_text = raw_req_dist[req_idx]
+                            requirements.append(DistributionProcessingService.convert_requirement(
                                 distribution_id=distribution.distribution_id,
-                                extras=(
-                                    str(dependency.marker)
-                                    if dependency.marker
-                                    else ""
-                                ),
-                                dependency_extras=",".join(dependency.extras),
-                                dependency_name=packaging.utils.canonicalize_name(
-                                    dependency.name, validate=True
-                                ),
-                                version_constraint=str(dependency.specifier),
-                                dependency_extras_arr=list(dependency.extras),
+                                requirement=requirement_text,
+                            ))
+
+                        except Exception as ex:
+                            logger.warning("Unable to parse requirement: %s", requirement_text)
+                            requirements.append(
+                                models.Requirement(
+                                    requirement_id=None,
+                                    distribution_id=distribution.distribution_id,
+                                    dependency_name=requirement_text,
+                                    parsable=False,
+                                    # TODO: Can any of these be refined?
+                                    extras="",
+                                    dependency_extras="",
+                                    version_constraint="",
+                                    dependency_extras_arr=[],
+                                )
                             )
-                        )
 
                 logger.info(
                     f"{distribution.distribution_id} - Found {len(requirements)} requirements."
@@ -150,6 +190,7 @@ class DistributionProcessingService:
                 )
 
                 await cursor.execute("commit;")
+
             except Exception as ex:
                 logger.error(
                     f"{distribution.distribution_id} - Error while retrieving/persisting requirements info.",

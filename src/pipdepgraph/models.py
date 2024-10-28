@@ -146,6 +146,7 @@ class Requirement:
     dependency_extras: str
     version_constraint: str
     dependency_extras_arr: list[str]
+    parsable: bool = True
 
     @classmethod
     def from_dict(cls, data: dict) -> "Requirement":
@@ -157,6 +158,7 @@ class Requirement:
             dependency_extras=data.get("dependency_extras", None),
             version_constraint=data.get("version_constraint", None),
             dependency_extras_arr=data.get("dependency_extras_arr", None),
+            parsable=data.get("parsable", None),
         )
 
     def to_json(self) -> str:
@@ -173,5 +175,6 @@ class Requirement:
                 dependency_extras=self.dependency_extras,
                 version_constraint=self.version_constraint,
                 dependency_extras_arr=self.dependency_extras_arr,
+                parsable=self.parsable,
             )
         )
