@@ -131,10 +131,10 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-      replicas: 0
+      replicas: 1
       placement:
         constraints:
-          - node.labels.role==app
+          - node.labels.role==broker
     command: ["python", "src/pipdepgraph/entrypoints/load_from_pypi_simple_index.py"]
     networks:
       - db_net
