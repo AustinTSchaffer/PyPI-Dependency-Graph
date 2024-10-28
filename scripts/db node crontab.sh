@@ -1,0 +1,2 @@
+# Every minute, push active update/alter queries into "pypi_packages.sql_update_progress"
+* * * * * docker container exec $(docker container ls --format '{{.Names}}' | grep pypi_scraper_db) psql --user pypi_scraper defaultdb -c "insert into pypi_packages.sql_update_progress SELECT pid, now() - query_start as duration, query FROM pg_stat_activity WHERE query ~* '^(update|alter) .+' on conflict (pid) do update set duration = EXCLUDED.duration;"

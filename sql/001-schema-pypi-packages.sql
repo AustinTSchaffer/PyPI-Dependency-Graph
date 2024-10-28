@@ -84,16 +84,18 @@ alter table pypi_packages.distributions
 -- pypi_packages.requirements
 --
 create table pypi_packages.requirements (
+    requirement_id uuid not null,
     distribution_id uuid not null,
-    extras text,
+    extras text not null,
     dependency_name text not null,
-    dependency_extras text null,
-    version_constraint text null,
+    dependency_extras text not null,
+    version_constraint text not null,
     dependency_extras_arr text[] not null
 );
 
-alter table pypi_packages.requirements
-    add unique (distribution_id, extras, dependency_name, dependency_extras);
+-- Maybe we can enable this one day.
+-- alter table pypi_packages.requirements
+--     add unique (distribution_id, extras, dependency_name, dependency_extras, version_constraint);
 
 alter table pypi_packages.requirements
     add foreign key (distribution_id)
@@ -109,3 +111,16 @@ create index
     on pypi_packages.requirements
     using btree
     (dependency_name);
+
+create index
+    on pypi_packages.requirements
+    using btree
+    (requirement_id);
+
+-- For tracking progress of various update/alter commands, which are much faster than
+-- "SQL select -> RabbitMQ -> SQL update" -style processes, but have no progress bars.
+create table pypi_packages.sql_update_progress (
+    pid int primary key,
+    duration interval,
+    query text
+);
