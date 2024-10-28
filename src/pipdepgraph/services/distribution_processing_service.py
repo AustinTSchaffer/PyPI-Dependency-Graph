@@ -94,6 +94,7 @@ class DistributionProcessingService:
                     for dependency in metadata.requires_dist:
                         requirements.append(
                             models.Requirement(
+                                requirement_id=None,
                                 distribution_id=distribution.distribution_id,
                                 extras=(
                                     str(dependency.marker)

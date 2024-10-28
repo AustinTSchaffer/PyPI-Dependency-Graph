@@ -141,11 +141,11 @@ class Distribution:
 class Requirement:
     requirement_id: str | None
     distribution_id: str
-    extras: str | None
+    extras: str
     dependency_name: str
-    dependency_extras: Optional[str]
-    version_constraint: Optional[str]
-    dependency_extras_arr: Optional[list[str]]
+    dependency_extras: str
+    version_constraint: str
+    dependency_extras_arr: list[str]
 
     @classmethod
     def from_dict(cls, data: dict) -> "Requirement":
@@ -167,11 +167,7 @@ class Requirement:
                     if self.requirement_id is not None
                     else None
                 ),
-                distribution_id=(
-                    str(self.distribution_id)
-                    if self.distribution_id is not None
-                    else None
-                ),
+                distribution_id=str(self.distribution_id),
                 extras=self.extras,
                 dependency_name=self.dependency_name,
                 dependency_extras=self.dependency_extras,
