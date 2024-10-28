@@ -52,7 +52,12 @@ async def main():
                 logger.info(
                     "Loading all unprocessed version distributions into RabbitMQ"
                 )
-                async for vd in dr.iter_distributions(processed=False):
+
+                package_type = (
+                    'bdist_wheel' if constants.UPL_ONLY_LOAD_BDIST_WHEEL_DISTRIBUTIONS else None
+                )
+
+                async for vd in dr.iter_distributions(processed=False, package_type=package_type):
                     logger.debug(
                         "Loading unprocessed version distribution: %s",
                         vd.distribution_id,

@@ -75,15 +75,15 @@ class DistributionsRepository:
                 params = [None] * PARAMS_PER_INSERT * len(distribution_batch)
 
                 offset = 0
-                for vd in distribution_batch:
-                    params[offset + 0] = vd.version_id
-                    params[offset + 1] = vd.package_type
-                    params[offset + 2] = vd.python_version
-                    params[offset + 3] = vd.requires_python
-                    params[offset + 4] = vd.upload_time
-                    params[offset + 5] = vd.yanked
-                    params[offset + 6] = vd.package_filename
-                    params[offset + 7] = vd.package_url
+                for dist in distribution_batch:
+                    params[offset + 0] = dist.version_id
+                    params[offset + 1] = dist.package_type
+                    params[offset + 2] = dist.python_version
+                    params[offset + 3] = dist.requires_python
+                    params[offset + 4] = dist.upload_time
+                    params[offset + 5] = dist.yanked
+                    params[offset + 6] = dist.package_filename
+                    params[offset + 7] = dist.package_url
                     offset += PARAMS_PER_INSERT
 
                 await cursor.execute(query, params)
@@ -130,8 +130,8 @@ class DistributionsRepository:
             """
 
             params_seq = [
-                (vd.processed, vd.metadata_file_size, vd.distribution_id)
-                for vd in distributions
+                (dist.processed, dist.metadata_file_size, dist.distribution_id)
+                for dist in distributions
             ]
 
             await cursor.executemany(query, params_seq)
@@ -146,6 +146,7 @@ class DistributionsRepository:
     async def iter_distributions(
         self,
         processed: bool | None = None,
+        package_type: str | None = None,
         package_name: str | models.PackageName | None = None,
     ) -> AsyncIterable[models.Distribution]:
         async with self.db_pool.connection() as conn, conn.cursor(
@@ -153,20 +154,20 @@ class DistributionsRepository:
         ) as cursor:
             query = f"""
             select
-                vd.distribution_id,
-                vd.version_id,
-                vd.package_type,
-                vd.python_version,
-                vd.requires_python,
-                vd.upload_time,
-                vd.yanked,
-                vd.package_filename,
-                vd.package_url,
-                vd.metadata_file_size,
-                vd.processed
-            from {table_names.DISTRIBUTIONS} vd
-            {"" if package_name is None else f" left join {table_names.VERSIONS} kv on kv.version_id = vd.version_id "}
-            {"" if package_name is None else f" left join {table_names.PACKAGE_NAMES} kpn on kpn.package_name = kv.package_name "}
+                dist.distribution_id,
+                dist.version_id,
+                dist.package_type,
+                dist.python_version,
+                dist.requires_python,
+                dist.upload_time,
+                dist.yanked,
+                dist.package_filename,
+                dist.package_url,
+                dist.metadata_file_size,
+                dist.processed
+            from {table_names.DISTRIBUTIONS} dist
+            {"" if package_name is None else f" left join {table_names.VERSIONS} version on version.version_id = dist.version_id "}
+            {"" if package_name is None else f" left join {table_names.PACKAGE_NAMES} name on name.package_name = version.package_name "}
             """
 
             has_where = False
@@ -183,7 +184,7 @@ class DistributionsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " kpn.package_name = %s "
+                query += " name.package_name = %s "
                 params.append(_package_name)
 
             if processed is not None:
@@ -192,8 +193,17 @@ class DistributionsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " vd.processed = %s "
+                query += " dist.processed = %s "
                 params.append(processed)
+
+            if package_type is not None:
+                if not has_where:
+                    query += " where "
+                    has_where = True
+                else:
+                    query += " and "
+                query += " dist.package_type = %s "
+                params.append(package_type)
 
             await cursor.execute(query, params)
             async for record in cursor:
