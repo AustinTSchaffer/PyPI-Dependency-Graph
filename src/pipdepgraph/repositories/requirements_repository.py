@@ -216,8 +216,8 @@ class RequirementsRepository:
                     query += " dependency_extras_arr is not null "
 
             await cursor.execute(query, params)
-            records = await cursor.fetchmany(size=50_000)
+            records = await cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
                     yield models.Requirement.from_dict(record)
-                records = await cursor.fetchmany(size=50_000)
+                records = await cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)

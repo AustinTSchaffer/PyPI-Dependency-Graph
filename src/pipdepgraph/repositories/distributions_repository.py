@@ -206,5 +206,8 @@ class DistributionsRepository:
                 params.append(package_type)
 
             await cursor.execute(query, params)
-            async for record in cursor:
-                yield models.Distribution.from_dict(record)
+            records = await cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)
+            while records:
+                for record in records:
+                    yield models.Distribution.from_dict(record)
+                records = await cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)

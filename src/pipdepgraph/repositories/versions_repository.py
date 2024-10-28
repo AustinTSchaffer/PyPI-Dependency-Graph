@@ -240,8 +240,11 @@ class VersionsRepository:
                 params.append(package_version)
 
             await cursor.execute(query, params)
-            async for record in cursor:
-                yield models.Version.from_dict(record)
+            records = await cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
+            while records:
+                for record in records:
+                    yield models.Version.from_dict(record)
+                records = await cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
 
         if cursor:
             async for record in _iter_versions(cursor):

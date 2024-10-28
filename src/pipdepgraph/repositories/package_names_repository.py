@@ -172,8 +172,11 @@ class PackageNamesRepository:
                 params.append(date_last_checked_before)
 
             await cursor.execute(query, params)
-            async for record in cursor:
-                yield models.PackageName.from_dict(record)
+            records = await cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
+            while records:
+                for record in records:
+                    yield models.PackageName.from_dict(record)
+                records = await cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
 
     async def _propagate_dependency_names(self, cursor: AsyncCursor):
         query = f"""

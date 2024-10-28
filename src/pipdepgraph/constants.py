@@ -50,6 +50,11 @@ UPL_LOAD_INCOMPLETE_REQUIREMENTS = bool(
     os.getenv("UPL_LOAD_INCOMPLETE_REQUIREMENTS", "false").strip().lower() == "true"
 )
 
+NAMES_REPO_ITER_BATCH_SIZE = int(os.getenv("NAMES_REPO_ITER_BATCH_SIZE", "50_000"))
+VERSIONS_REPO_ITER_BATCH_SIZE = int(os.getenv("VERSIONS_REPO_ITER_BATCH_SIZE", "50_000"))
+DISTRIBUTIONS_REPO_ITER_BATCH_SIZE = int(os.getenv("DISTRIBUTIONS_REPO_ITER_BATCH_SIZE", "50_000"))
+REQUIREMENTS_REPO_ITER_BATCH_SIZE = int(os.getenv("REQUIREMENTS_REPO_ITER_BATCH_SIZE", "50_000"))
+
 PACKAGE_RELEASE_TERM_MAX_SIZE = 9_223_372_036_854_775_807  # Postgres bigint max size
 """
 This is based on Postgres's max value for bigint. There are a few package version
