@@ -118,11 +118,12 @@ class DistributionProcessingService:
             requirements: list[models.Requirement] = []
             try:
                 try:
-                    for requirement in metadata.requires_dist:
-                        requirements.append(DistributionProcessingService.convert_requirement(
-                            distribution_id=distribution.distribution_id,
-                            requirement=requirement,
-                        ))
+                    if metadata.requires_dist:
+                        for requirement in metadata.requires_dist:
+                            requirements.append(DistributionProcessingService.convert_requirement(
+                                distribution_id=distribution.distribution_id,
+                                requirement=requirement,
+                            ))
 
                 except Exception as ex:
                     logger.warning("Error while iterating through metadata.requires_dist", exc_info=True)
