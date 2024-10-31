@@ -50,7 +50,7 @@ class RequirementsRepository:
                 """
 
                 query += ",".join(
-                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, pypi_packages.parse_specifier_set(%s) ) " for _ in range(len(requirement_batch))
+                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, parse_specifier_set(%s) ) " for _ in range(len(requirement_batch))
                 )
                 query += " on conflict do nothing; "
 
