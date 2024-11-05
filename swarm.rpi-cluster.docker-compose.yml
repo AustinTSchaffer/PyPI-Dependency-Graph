@@ -21,11 +21,11 @@ services:
 
   db2:
     restart: always
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:${STACK_VERSION:-latest}
+    image: postgres:16-alpine
     networks:
       - db_net
-    ports:
-      - '5433:5432'
+    # ports:
+    #   - '5433:5432'
     environment:
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
