@@ -19,7 +19,7 @@ services:
     volumes:
       - /mnt/ssd/postgres:/var/lib/postgresql/data
 
-  db2:
+  linode_db:
     restart: always
     image: postgres:16-alpine
     networks:
@@ -35,7 +35,7 @@ services:
         condition: any
       placement:
           constraints:
-            - node.labels.role==db2
+            - node.labels.role==linode_db
     volumes:
       - /mnt/pypi-scraper-db-volume/postgres:/var/lib/postgresql/data
 
