@@ -19,6 +19,26 @@ services:
     volumes:
       - /mnt/ssd/postgres:/var/lib/postgresql/data
 
+  db2:
+    restart: always
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:${STACK_VERSION:-latest}
+    networks:
+      - db_net
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: defaultdb
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+          constraints:
+            - node.labels.role==db2
+    volumes:
+      - /mnt/pypi-scraper-db-volume/postgres:/var/lib/postgresql/data
+
   broker:
     restart: always
     image: rabbitmq:3-management-alpine
