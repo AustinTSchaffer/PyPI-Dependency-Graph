@@ -1,7 +1,7 @@
 services:
   db:
     restart: always
-    image: postgres-16:latest
+    image: postgres:16-latest
     networks:
       - db_net
     ports:
@@ -38,7 +38,7 @@ services:
           constraints:
             - node.labels.role==broker
     volumes:
-      - broker:/var/lib/postgresql/data
+      - broker:/var/lib/rabbitmq
 
   names_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
