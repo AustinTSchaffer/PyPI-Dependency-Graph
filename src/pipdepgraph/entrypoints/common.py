@@ -29,7 +29,7 @@ def initialize_async_connection_pool(
     """
 
     return AsyncConnectionPool(
-        conninfo=connection_string, max_size=max_pool_size,
+        conninfo=connection_string, min_size=1, max_size=max_pool_size,
     )
 
 
