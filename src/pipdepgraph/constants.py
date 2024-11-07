@@ -56,6 +56,9 @@ UPL_LOAD_PACKAGE_NAMES = bool(
 UPL_LOAD_DISTRIBUTIONS = bool(
     os.getenv("UPL_LOAD_DISTRIBUTIONS", "false").strip().lower() == "true"
 )
+UPL_ONLY_LOAD_UNPROCESSED_DISTRIBUTIONS = bool(
+    os.getenv("UPL_ONLY_LOAD_UNPROCESSED_DISTRIBUTIONS", "true").strip().lower() == "true"
+)
 UPL_ONLY_LOAD_BDIST_WHEEL_DISTRIBUTIONS = bool(
     os.getenv("UPL_ONLY_LOAD_BDIST_WHEEL_DISTRIBUTIONS", "false").strip().lower() == "true"
 )

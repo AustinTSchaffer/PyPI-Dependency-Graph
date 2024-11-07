@@ -92,7 +92,7 @@ services:
   unprocessed_record_loader:
     restart: on-failure
     deploy:
-      replicas: 1
+      replicas: 0
     build:
       context: .
       dockerfile: app.Dockerfile

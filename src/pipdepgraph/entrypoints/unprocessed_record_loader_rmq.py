@@ -57,7 +57,12 @@ async def main():
                     'bdist_wheel' if constants.UPL_ONLY_LOAD_BDIST_WHEEL_DISTRIBUTIONS else None
                 )
 
-                async for vd in dr.iter_distributions(processed=False, package_type=package_type):
+                processed = False if constants.UPL_ONLY_LOAD_UNPROCESSED_DISTRIBUTIONS else None
+
+                async for vd in dr.iter_distributions(
+                    processed=processed,
+                    package_type=package_type
+                ):
                     logger.debug(
                         "Loading unprocessed version distribution: %s",
                         vd.distribution_id,
