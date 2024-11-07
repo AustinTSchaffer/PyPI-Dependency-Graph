@@ -1,44 +1,4 @@
 services:
-  db:
-    restart: always
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:${STACK_VERSION:-latest}
-    networks:
-      - db_net
-    ports:
-      - '5432:5432'
-    environment:
-      POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: defaultdb
-    deploy:
-      restart_policy:
-        condition: any
-      placement:
-          constraints:
-            - node.labels.role==db
-    volumes:
-      - /mnt/ssd/postgres:/var/lib/postgresql/data
-
-  linode_db:
-    restart: always
-    image: postgres:16-alpine
-    networks:
-      - db_net
-    ports:
-      - '5433:5432'
-    environment:
-      POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: defaultdb
-    deploy:
-      restart_policy:
-        condition: any
-      placement:
-          constraints:
-            - node.labels.role==linode_db
-    volumes:
-      - /mnt/pypi-scraper-db-volume/postgres:/var/lib/postgresql/data
-
   broker:
     restart: always
     image: rabbitmq:3-management-alpine
@@ -58,7 +18,7 @@ services:
           constraints:
             - node.labels.role==broker
     volumes:
-      - broker:/var/lib/postgresql/data
+      - broker:/var/lib/rabbitmq
 
   names_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
@@ -71,21 +31,22 @@ services:
         constraints:
           - node.labels.role==app
     networks:
-      - db_net
       - broker_net
     environment:
-      POSTGRES_HOST: db
+      POSTGRES_HOST: 172.105.159.14
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "names_processor.{{.Task.Slot}}."
     depends_on:
-      - db
       - broker
+    secrets:
+      - db_password
 
   dists_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
@@ -98,21 +59,22 @@ services:
           - node.labels.role==app
     command: ["python", "src/pipdepgraph/entrypoints/process_distributions_rmq.py"]
     networks:
-      - db_net
       - broker_net
     environment:
-      POSTGRES_HOST: db
+      POSTGRES_HOST: 172.105.159.14
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "dists_processor.{{.Task.Slot}}."
     depends_on:
-      - db
       - broker
+    secrets:
+      - db_password
 
   unprocessed_record_loader:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
@@ -125,13 +87,12 @@ services:
           - node.labels.role==broker
     command: ["python", "src/pipdepgraph/entrypoints/unprocessed_record_loader_rmq.py"]
     networks:
-      - db_net
       - broker_net
     environment:
-      POSTGRES_HOST: db
+      POSTGRES_HOST: 172.105.159.14
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
 
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
@@ -143,8 +104,9 @@ services:
       UPL_LOAD_PACKAGE_NAMES: "false"
       UPL_LOAD_INCOMPLETE_REQUIREMENTS: "false"
     depends_on:
-      - db
       - broker
+    secrets:
+      - db_password
 
   pypi_loader:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
@@ -157,25 +119,29 @@ services:
           - node.labels.role==broker
     command: ["python", "src/pipdepgraph/entrypoints/load_from_pypi_simple_index.py"]
     networks:
-      - db_net
       - broker_net
     environment:
-      POSTGRES_HOST: db
+      POSTGRES_HOST: 172.105.159.14
       POSTGRES_DB: defaultdb
       POSTGRES_USER: pypi_scraper
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
       RABBITMQ_HOST: broker
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "pypi_loader.{{.Task.Slot}}."
     depends_on:
-      - db
       - broker
+    secrets:
+      - db_password
 
 networks:
-  db_net:
   broker_net:
+    driver: bridge
 
 volumes:
   broker:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password

@@ -77,6 +77,11 @@ create index
     using btree
     (version_id);
 
+create index
+    on pypi_packages.distributions
+    using btree
+    (package_type);
+
 alter table pypi_packages.distributions
     add unique (package_url);
 
