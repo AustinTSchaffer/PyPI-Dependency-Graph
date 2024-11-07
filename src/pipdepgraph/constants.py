@@ -5,7 +5,17 @@ POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
 POSTGRES_DB = os.getenv("POSTGRES_DB", "defaultdb")
 POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME", "pypi_scraper")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+POSTGRES_PASSWORD = "password"
+
+_postgres_password_file = os.getenv("POSTGRES_PASSWORD_FILE", None)
+_postgres_password_envvar = os.getenv("POSTGRES_PASSWORD", None)
+
+if _postgres_password_file:
+    with open(_postgres_password_file, 'r') as f:
+        POSTGRES_PASSWORD = f.read()
+    del f
+elif _postgres_password_envvar:
+    POSTGRES_PASSWORD = _postgres_password_envvar
 
 POSTGRES_MAX_QUERY_PARAMS = 65535
 
