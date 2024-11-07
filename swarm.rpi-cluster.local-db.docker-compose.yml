@@ -90,6 +90,7 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "dists_processor.{{.Task.Slot}}."
+      DIST_PROCESSOR_IGNORE_PROCESSED_FLAG: "true"
     depends_on:
       - db
       - broker
@@ -99,7 +100,7 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-      replicas: 1
+      replicas: 0
       placement:
         constraints:
           - node.labels.role==broker
@@ -131,7 +132,7 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-      replicas: 1
+      replicas: 0
       placement:
         constraints:
           - node.labels.role==broker

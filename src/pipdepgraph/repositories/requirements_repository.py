@@ -129,6 +129,35 @@ class RequirementsRepository:
                 await _update_requirement(cursor)
                 await cursor.execute("commit;")
 
+
+    async def delete_requirements(
+        self,
+        *,
+        distribution_id: str,
+        cursor: AsyncCursor | None = None,
+    ):
+        """
+        Deletes requirements that have the specified `distribution_id`.
+        """
+
+        if not distribution_id:
+            return
+
+        async def _delete_requirements(cursor: AsyncCursor):
+            query = f"""
+            delete from {table_names.REQUIREMENTS}
+            where distribution_id = %s;
+            """
+            await cursor.execute(query, [distribution_id])
+
+        if cursor:
+            await _delete_requirements(cursor)
+        else:
+            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                await _delete_requirements(cursor)
+                await cursor.execute("commit;")
+
+
     async def iter_requirements(
         self,
         package_name: str | None = None,

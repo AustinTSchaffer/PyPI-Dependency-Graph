@@ -46,6 +46,9 @@ RABBITMQ_CTAG_PREFIX = os.getenv("RABBITMQ_CTAG_PREFIX", None)
 DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES = bool(
     os.getenv("DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES", "false").strip().lower() == "true"
 )
+DIST_PROCESSOR_IGNORE_PROCESSED_FLAG = bool(
+    os.getenv("DIST_PROCESSOR_IGNORE_PROCESSED_FLAG", "false").strip().lower() == "true"
+)
 
 UPL_LOAD_PACKAGE_NAMES = bool(
     os.getenv("UPL_LOAD_PACKAGE_NAMES", "false").strip().lower() == "true"

@@ -36,16 +36,6 @@ class DistributionProcessingService:
         self.db_pool = db_pool
         self.rabbitmq_publish_service = rmq_pub
 
-    async def run_from_database(self):
-        """
-        Runs through all unprocessed distributions from the database and processes each one.
-        """
-        async for (
-            distribution
-        ) in self.distributions_repo.iter_distributions(
-            processed=False
-        ):
-            await self.process_distribution(distribution)
 
     @staticmethod
     def convert_requirement(
@@ -72,10 +62,12 @@ class DistributionProcessingService:
             parsable=True,
         )
 
+
     async def process_distribution(
         self,
         distribution: models.Distribution,
-        ignore_processed_flag: bool = False,
+        ignore_processed_flag: bool = constants.DIST_PROCESSOR_IGNORE_PROCESSED_FLAG,
+        discover_package_names: bool = constants.DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES,
     ):
         """
         Processes a single distribution.
@@ -114,9 +106,17 @@ class DistributionProcessingService:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
-
             requirements: list[models.Requirement] = []
             try:
+                logger.debug(
+                    f"{distribution.distribution_id} - Deleting existing requirements."
+                )
+
+                await self.requirements_repo.delete_requirements(
+                    distribution_id=distribution.distribution_id,
+                    cursor=cursor,
+                )
+
                 try:
                     if metadata.requires_dist:
                         for requirement in metadata.requires_dist:
@@ -161,13 +161,13 @@ class DistributionProcessingService:
                     cursor=cursor,
                 )
 
-                if constants.DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES:
+                if discover_package_names:
                     distinct_package_names = list(
                         {dd.dependency_name for dd in requirements}
                     )
 
                     logger.debug(
-                        f"{distribution.distribution_id} - Propagating {len(distinct_package_names)} back to Postgres."
+                        f"{distribution.distribution_id} - Propagating {len(distinct_package_names)} package names back to Postgres."
                     )
 
                     result = await self.package_names_repo.insert_package_names(
@@ -198,3 +198,4 @@ class DistributionProcessingService:
                     f"{distribution.distribution_id} - Error while retrieving/persisting requirements info.",
                     exc_info=ex,
                 )
+                await cursor.execute("rollback;")
