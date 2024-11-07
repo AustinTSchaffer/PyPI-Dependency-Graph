@@ -49,15 +49,17 @@ async def main():
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
             if constants.UPL_LOAD_DISTRIBUTIONS:
-                logger.info(
-                    "Loading all unprocessed version distributions into RabbitMQ"
-                )
-
                 package_type = (
                     'bdist_wheel' if constants.UPL_ONLY_LOAD_BDIST_WHEEL_DISTRIBUTIONS else None
                 )
 
                 processed = False if constants.UPL_ONLY_LOAD_UNPROCESSED_DISTRIBUTIONS else None
+
+                logger.info(
+                    "Loading distributions into RabbitMQ. (package_type=%s, processed=%s)",
+                    package_type,
+                    processed,
+                )
 
                 async for vd in dr.iter_distributions(
                     processed=processed,

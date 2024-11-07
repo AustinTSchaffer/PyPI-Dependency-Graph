@@ -199,3 +199,4 @@ class DistributionProcessingService:
                     exc_info=ex,
                 )
                 await cursor.execute("rollback;")
+                raise

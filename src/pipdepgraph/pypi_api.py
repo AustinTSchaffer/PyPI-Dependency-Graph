@@ -127,7 +127,7 @@ class PypiApi:
         Returns the parsed metadata file plus the size of the file.
         """
 
-        if distribution.package_type in ("sdist", "bdist_wininst", "bdist_egg"):
+        if distribution.package_type != 'bdist_wheel':
             logger.warning(
                 f"Cannot retrieve metadata file for distribution without downloading entire package. Distribution: {distribution}"
             )
@@ -140,6 +140,7 @@ class PypiApi:
         if metadata_file_resp.status == 404:
             logger.warning(f"Metadata file not found. Distribution: {distribution}")
             return None, 0
+
         elif not metadata_file_resp.ok:
             message = f"Error fetching metadata file for distribution {distribution}. Code {metadata_file_resp.status}. Message: {await metadata_file_resp.text()}"
             logger.error(message)
