@@ -1,7 +1,7 @@
 services:
   db:
     restart: always
-    image: postgres:16-latest
+    image: postgres:16-alpine
     networks:
       - db_net
     ports:
