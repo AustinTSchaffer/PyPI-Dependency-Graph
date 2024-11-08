@@ -81,7 +81,13 @@ async def main():
                 logger.info("Loading all incomplete requirements records into RabbitMQ")
                 async for req in rr.iter_requirements(dependency_extras_arr_is_none=True):
                     logger.debug("Loading Requirement: %s", req)
-                    rmq_pub.publish_requirement(req, channel=channel)
+                    rmq_pub.publish_requirement_for_reprocessing(req, channel=channel)
+
+            if constants.UPL_LOAD_REQUIREMENTS_FOR_CANDIDATE_CORRELATION:
+                logger.info("Loading all requirements records into RabbitMQ")
+                async for req in rr.iter_requirements():
+                    logger.debug("Loading Requirement: %s", req)
+                    rmq_pub.publish_requirement_for_candidate_correlation(req, channel=channel)
 
 if __name__ == "__main__":
     common.initialize_logger()

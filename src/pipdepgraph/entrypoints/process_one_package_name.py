@@ -12,7 +12,7 @@ import pika.channel
 import pika.delivery_mode
 import pika.spec
 
-from pipdepgraph import constants, models, pypi_api
+from pipdepgraph import pypi_api
 from pipdepgraph.entrypoints import common
 
 from pipdepgraph.repositories import (

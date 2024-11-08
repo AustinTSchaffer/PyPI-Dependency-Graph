@@ -15,26 +15,38 @@ import pika.spec
 from pipdepgraph import constants, models
 from pipdepgraph.entrypoints import common
 
+from pipdepgraph.services import candidate_correlation_service
+
 from pipdepgraph.repositories import (
+    versions_repository,
     requirements_repository,
+    candidates_repository,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.reprocess_requirements_rmq")
+logger = logging.getLogger("pipdepgraph.entrypoints.correlate_candidates_for_requirements_rmq")
 
 
 async def main():
     logger.info("Initializing DB pool")
     async with (
         common.initialize_async_connection_pool() as db_pool,
-        common.initialize_client_session() as session,
-        db_pool.connection() as conn,
-        conn.cursor() as edit_cursor,
     ):
         logger.info("Initializing repositories")
+        vr = versions_repository.VersionsRepository(db_pool)
         rr = requirements_repository.RequirementsRepository(db_pool)
+        cr = candidates_repository.CandidatesRepository(db_pool)
+
+        logger.info(
+            "Initializing candidate_correlation_service.CandidateCorrelationService"
+        )
+        ccs = candidate_correlation_service.CandidateCorrelationService(
+            db_pool=db_pool,
+            rr=rr,
+            vr=vr,
+            cr=cr,
+        )
 
         logger.info("Starting RabbitMQ consumer thread")
-
         requirements_queue: queue.Queue[models.Requirement] = (
             queue.Queue()
         )
@@ -52,18 +64,8 @@ async def main():
 
             try:
                 requirement = requirements_queue.get(timeout=5.0)
-
-                if requirement.extras is None:
-                    requirement.extras = ""
-
-                requirement.dependency_extras_arr = []
-                if requirement.dependency_extras:
-                    requirement.dependency_extras_arr = requirement.dependency_extras.split(',')
-
-                logger.info(f"Updating requirement: {requirement}")
-                await rr.update_requirement(requirement, cursor=edit_cursor)
-                await edit_cursor.execute("commit;")
-
+                logger.debug("Correlating candidates for requirement: %s", requirement)
+                await ccs.process_requirement_record(requirement)
                 ack_queue.put(True)
 
             except queue.Empty as ex:
@@ -132,7 +134,7 @@ def consume_from_rabbitmq_target(
             logger.info("Starting RabbitMQ consumer with ctag: %s", consumer_tag)
 
         channel.basic_consume(
-            queue=constants.RABBITMQ_REPROCESS_REQS_QNAME,
+            queue=constants.RABBITMQ_REQS_CAND_CORR_QNAME,
             on_message_callback=_requirement_consumer,
             consumer_tag=consumer_tag,
             auto_ack=False,

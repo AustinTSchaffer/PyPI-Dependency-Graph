@@ -178,3 +178,18 @@ class Requirement:
                 parsable=self.parsable,
             )
         )
+
+
+@dataclasses.dataclass
+class Candidate:
+    requirement_id: str
+    candidate_versions: list[str]
+    candidate_version_ids: list[str]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Candidate":
+        return cls(
+            requirement_id=data.get("requirement_id", None),
+            candidate_versions=data.get("candidate_versions", None),
+            candidate_version_ids=data.get("candidate_version_ids", None),
+        )

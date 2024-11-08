@@ -89,9 +89,16 @@ def declare_rabbitmq_infrastructure(
         routing_key=constants.RABBITMQ_DISTS_RK,
     )
 
-    channel.queue_declare(constants.RABBITMQ_REQS_QNAME, durable=True)
+    channel.queue_declare(constants.RABBITMQ_REPROCESS_REQS_QNAME, durable=True)
     channel.queue_bind(
         exchange=constants.RABBITMQ_EXCHANGE,
-        queue=constants.RABBITMQ_REQS_QNAME,
-        routing_key=constants.RABBITMQ_REQS_RK,
+        queue=constants.RABBITMQ_REPROCESS_REQS_QNAME,
+        routing_key=constants.RABBITMQ_REPROCESS_REQS_RK,
+    )
+
+    channel.queue_declare(constants.RABBITMQ_REQS_CAND_CORR_QNAME, durable=True)
+    channel.queue_bind(
+        exchange=constants.RABBITMQ_EXCHANGE,
+        queue=constants.RABBITMQ_REQS_CAND_CORR_QNAME,
+        routing_key=constants.RABBITMQ_REQS_CAND_CORR_RK,
     )

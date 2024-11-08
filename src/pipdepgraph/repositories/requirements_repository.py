@@ -165,6 +165,7 @@ class RequirementsRepository:
         dist_package_type: str | None = None,
         dist_processed: bool | None = None,
         dist_id_hash_mod_filter: tuple[str, int, int] | None = None,
+        dependency_name: str | None = None,
         dependency_extras_arr_is_none: bool = None,
     ) -> AsyncIterable[models.Requirement]:
         """
@@ -185,8 +186,15 @@ class RequirementsRepository:
                 req.dependency_extras      dependency_extras,
                 req.version_constraint     version_constraint,
                 req.dependency_extras_arr  dependency_extras_arr
-            FROM {table_names.REQUIREMENTS} req
-            """
+            from {table_names.REQUIREMENTS} req {
+                f" join {table_names.DISTRIBUTIONS} dist on req.distribution_id = dist.distribution_id "
+                if any(filter(lambda v: v is not None, [package_name, package_version, dist_processed, dist_package_type])) else
+                ""
+            } {
+                f" join {table_names.VERSIONS} version on version.version_id = dist.version_id "
+                if any(filter(lambda v: v is not None, [package_name, package_version])) else
+                ""
+            } """
 
             has_where = False
             params = []
@@ -234,7 +242,7 @@ class RequirementsRepository:
                     has_where = True
                 else:
                     query += " and "
-                query += " mod(get_byte(pypi_packages.digest(distribution_id::text, %s::text), 0), %s) = %s "
+                query += " mod(get_byte(pypi_packages.digest(req.distribution_id::text, %s::text), 0), %s) = %s "
                 params.extend((hash_alg, mod_base, mod_val))
 
             if dependency_extras_arr_is_none is not None:
@@ -244,9 +252,19 @@ class RequirementsRepository:
                 else:
                     query += " and "
                 if dependency_extras_arr_is_none:
-                    query += " dependency_extras_arr is null "
+                    query += " req.dependency_extras_arr is null "
                 else:
-                    query += " dependency_extras_arr is not null "
+                    query += " req.dependency_extras_arr is not null "
+
+            if dependency_name is not None:
+                if not has_where:
+                    query += " where "
+                    has_where = True
+                else:
+                    query += " and "
+
+                query += " req.dependency_name = %s "
+                params.append(dependency_name)
 
             await cursor.execute(query, params)
             records = await cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)

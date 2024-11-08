@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 class DistributionProcessingService:
+    """
+    The distribution processing service processes a single distribution record
+    at a time, performing the following actions in sequence.
+
+    - Deletes all requirement records linked to the distribution in postgres.
+    - Fetches the distribution's `.metadata` file from the PyPI API (if it's a wheel).
+    - Parses the metadata file, extracting the package's requirements (best effort).
+    - Persists the package's requirements to postgres.
+    - (optional) Propagates newly discovered package names back to postgres/rabbitmq.
+    - Marks the distribution as "processed" in postgres.
+    """
+
     def __init__(
         self,
         *,
@@ -70,14 +82,13 @@ class DistributionProcessingService:
         discover_package_names: bool = constants.DIST_PROCESSOR_DISCOVER_PACKAGE_NAMES,
     ):
         """
-        Processes a single distribution.
+        Processes a single distribution. See the class's docs for more info.
 
-        - Fetches the distribution's `.metadata` file from the PyPI API.
-        - Parses the metadata file, extracting the package's requirements.
-        - ...
+        `ignore_processed_flag` can be used to force this service to reprocess distributions
+        that have their `processed` flag set to `false`.
 
-        `ignore_processed_flag` can be used to force this method to reprocess a distribution that
-        has already been processed.
+        `discover_package_names` can be used to propagate newly discovered package names back
+        into the database and rabbitmq, creating a feedback loop.
         """
 
         if not ignore_processed_flag and distribution.processed:

@@ -28,6 +28,17 @@ logger = logging.getLogger(__name__)
 
 
 class PackageNameProcessingService:
+    """
+    The package name processing service processes a single package name
+    at a time, performing the following actions in sequence.
+
+    - Inserts the package nme into `package_names` to ensure that it exists in postgres.
+    - Fetches the package's info from the PyPI API.
+    - Inserts the package's version info into `versions`.
+    - Inserts the package's distribution info into `distributions`.
+    - Updates the `date_last_checked` field on the `package_name` record.
+    """
+
     def __init__(
         self,
         *,
@@ -45,27 +56,6 @@ class PackageNameProcessingService:
         self.pypi = pypi
         self.rabbitmq_publish_service = rmq_pub
 
-    async def propagate_discovered_package_names(
-        self,
-    ):
-        """
-        Propagates discovered package names from `requirements` back to `package_names`.
-        """
-
-        logger.info(
-            "Propagating package names from requirements back to package_names."
-        )
-        await self.package_names_repo.propagate_dependency_names()
-
-    async def run_from_database(self):
-        """
-        Runs through all package names from the database and processes each one.
-        """
-        async for package in self.package_names_repo.iter_package_names(
-            date_last_checked_before=datetime.datetime.now()
-            - RECHECK_PACKAGE_NAME_INTERVAL
-        ):
-            await self.process_package_name(package, ignore_date_last_checked=True)
 
     async def process_package_name(
         self,
@@ -73,13 +63,7 @@ class PackageNameProcessingService:
         ignore_date_last_checked: bool = False,
     ):
         """
-        Processes a single package name.
-
-        - inserts/retrieves the package into/from `package_names` to ensure that it exists.
-        - fetches the package's info from the PyPI API
-        - inserts the package's versions into `versions`
-        - inserts the package's distributions into `distributions`
-        - updates the `date_last_checked` field on the `package_name` record
+        Processes a single package name. See the class's docs for more info.
 
         `ignore_date_last_checked` can be used to force this method to process packages that
         have been processed recently.

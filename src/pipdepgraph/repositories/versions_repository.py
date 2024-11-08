@@ -177,6 +177,31 @@ class VersionsRepository:
                 await cursor.execute("commit;")
                 return result
 
+    async def get_versions(
+        self,
+        *,
+        cursor: AsyncCursor | None = None,
+        package_name: str | None = None,
+        package_version: str | None = None,            
+    ) -> list[models.Version]:
+        """
+        Returns a list of all version records matching the specified parameters.
+        Raises an error if package name isn't provided.
+
+        - `package_name`: Filter version records by an exact package name match. Does not
+          canonicalize the package name.
+        - `package_version`: Filter version records by an exact version string match. Does
+          not attempt to validate/parse the version string.
+        """
+
+        if not package_name:
+            raise ValueError("Package name not specified. Result set will be too large.")
+
+        versions = []
+        async for v in self.iter_versions(cursor=cursor, package_name=package_name, package_version=package_version):
+            versions.append(v)
+        return versions
+
     async def iter_versions(
         self,
         *,
@@ -192,8 +217,6 @@ class VersionsRepository:
           canonicalize the package name.
         - `package_version`: Filter version records by an exact version string match. Does
           not attempt to validate/parse the version string.
-        - `hasn_null_package_release`: Filter version records by whether they have a package
-          release          
         """
 
         async def _iter_versions(cursor: AsyncCursor) -> AsyncIterable[models.Version]:
