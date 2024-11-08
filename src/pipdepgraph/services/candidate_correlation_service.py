@@ -70,16 +70,23 @@ class CandidateCorrelationService:
         req_specifier_set = packaging.specifiers.SpecifierSet(requirement.version_constraint)
 
         versions = await self.versions_repo.get_versions(package_name=requirement.dependency_name)
-        version_dict = {
+        package_version_to_version_model_map = {
             version.package_version: version
             for version in versions
         }
 
-        parsed_versions = [packaging.version.Version(version.package_version) for version in versions]
-        candidate_versions = sorted(req_specifier_set.filter(parsed_versions), reverse=True)
+        parsed_version_to_package_version_map = {}
+        for version in versions:
+            try:
+                parsed_version = packaging.version.Version(version.package_version)
+                parsed_version_to_package_version_map[parsed_version] = version.package_version
+            except:
+                ...
 
-        candidate_versions_text = [str(v) for v in candidate_versions]
-        candidate_version_ids = [version_dict[v].version_id for v in candidate_versions_text]
+        sorted_parsed_candidate_versions = sorted(req_specifier_set.filter(parsed_version_to_package_version_map.keys()), reverse=True)
+
+        candidate_versions_text = [parsed_version_to_package_version_map[v] for v in sorted_parsed_candidate_versions]
+        candidate_version_ids = [package_version_to_version_model_map[v].version_id for v in candidate_versions_text]
 
         await self.candidates_repo.insert_candidate(models.Candidate(
             requirement_id=requirement.requirement_id,
