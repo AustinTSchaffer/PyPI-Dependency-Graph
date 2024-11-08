@@ -122,10 +122,19 @@ create index
     using btree
     (requirement_id);
 
--- For tracking progress of various update/alter commands, which are much faster than
--- "SQL select -> RabbitMQ -> SQL update" -style processes, but have no progress bars.
-create table pypi_packages.sql_update_progress (
-    pid int primary key,
-    duration interval,
-    query text
+-- Implemented as a separate table with the same keyspace as "requirements", mostly because
+-- the schema isn't "locked in" yet, and I don't want to totally screw up the "requirements"
+-- table, after I just spent a few weeks fixing it. Also, the records in this table will likely
+-- be updated as new packages are published, unlike records in the "requirements" table, which
+-- are static, parsed directly from immutable files from PyPI.org, and saved directly to postgres.
+
+create table pypi_packages.candidates (
+	requirement_id uuid primary key,
+	candidate_versions text[],
+	candidate_version_ids uuid[]
 );
+
+alter table candidates
+    add foreign key (requirement_id)
+    references requirements (requirement_id)
+    on delete cascade;
