@@ -46,7 +46,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 16
+      replicas: 6
       placement:
         constraints:
           - node.labels.role==app
@@ -72,7 +72,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 16
+      replicas: 6
       placement:
         constraints:
           - node.labels.role==app
@@ -91,6 +91,33 @@ services:
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "dists_processor.{{.Task.Slot}}."
       DIST_PROCESSOR_IGNORE_PROCESSED_FLAG: "true"
+    depends_on:
+      - db
+      - broker
+
+  candidate_correlator:
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:${STACK_VERSION:-latest}
+    deploy:
+      restart_policy:
+        condition: any
+      replicas: 90
+      placement:
+        constraints:
+          - node.labels.role==app
+    command: ["python", "src/pipdepgraph/entrypoints/correlate_candidates_for_requirements_rmq.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+      RABBITMQ_CTAG_PREFIX: "candidate_correlator.{{.Task.Slot}}."
     depends_on:
       - db
       - broker
