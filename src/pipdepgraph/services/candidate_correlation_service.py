@@ -67,7 +67,11 @@ class CandidateCorrelationService:
         requirement.
         """
 
-        req_specifier_set = packaging.specifiers.SpecifierSet(requirement.version_constraint)
+        try:
+            req_specifier_set = packaging.specifiers.SpecifierSet(requirement.version_constraint)
+        except Exception:
+            logger.error(f"Unparsable specifier set: {requirement.version_constraint}", exc_info=True)
+            return
 
         versions = await self.versions_repo.get_versions(package_name=requirement.dependency_name)
         package_version_to_version_model_map = {
