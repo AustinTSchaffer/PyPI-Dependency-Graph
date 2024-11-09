@@ -64,13 +64,16 @@ class CandidateCorrelationService:
     ):
         """
         Processes a single requirement record, finding versions that satisfy the
-        requirement.
+        requirement. Most errors in here fail silently, as that likely indicates
+        pip will also have a problem with those specifier sets and version strings
+        as well. Some errors, such as DB interaction issues, will cause genuine a
+        failure.
         """
 
         try:
             req_specifier_set = packaging.specifiers.SpecifierSet(requirement.version_constraint)
         except Exception:
-            logger.error(f"Unparsable specifier set: {requirement.version_constraint}", exc_info=True)
+            logger.error("Error while parsing specifier set: %s", requirement.version_constraint, exc_info=True)
             return
 
         versions = await self.versions_repo.get_versions(package_name=requirement.dependency_name)
@@ -85,9 +88,14 @@ class CandidateCorrelationService:
                 parsed_version = packaging.version.Version(version.package_version)
                 parsed_version_to_package_version_map[parsed_version] = version.package_version
             except:
-                ...
+                logger.error("Error while parsing version: %s.", version.package_version, exc_info=True)
+                pass
 
-        sorted_parsed_candidate_versions = sorted(req_specifier_set.filter(parsed_version_to_package_version_map.keys()), reverse=True)
+        try:
+            sorted_parsed_candidate_versions = sorted(req_specifier_set.filter(parsed_version_to_package_version_map.keys()), reverse=True)
+        except Exception:
+            logger.error("Error while filter-sorting requirements.", exc_info=True)
+            return
 
         candidate_versions_text = [parsed_version_to_package_version_map[v] for v in sorted_parsed_candidate_versions]
         candidate_version_ids = [package_version_to_version_model_map[v].version_id for v in candidate_versions_text]

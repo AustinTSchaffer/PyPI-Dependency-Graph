@@ -1,15 +1,6 @@
 #!/bin/bash
 
-export STACK_VERSION="0.15.0"
-
-# docker image build \
-#     -t pypi_scraper/db:latest \
-#     -t rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:latest \
-#     -t "rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:$STACK_VERSION" \
-#     -f db.Dockerfile .
-# 
-# docker image push "rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:$STACK_VERSION"
-# docker image push "rpi-cluster-4b-1gb-1:5000/pypi_scraper/db:latest"
+export STACK_VERSION="0.16.0"
 
 docker image build \
     -t pypi_scraper/app:latest \
