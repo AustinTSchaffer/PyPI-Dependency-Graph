@@ -96,7 +96,7 @@ services:
       - broker
 
   candidate_correlator:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app::0.15.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.15.0
     deploy:
       restart_policy:
         condition: any
