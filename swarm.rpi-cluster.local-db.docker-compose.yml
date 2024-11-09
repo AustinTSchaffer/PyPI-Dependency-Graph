@@ -46,7 +46,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 6
+      replicas: 0
       placement:
         constraints:
           - node.labels.role==app
@@ -72,7 +72,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 6
+      replicas: 0
       placement:
         constraints:
           - node.labels.role==app
