@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export STACK_VERSION="0.14.0"
+export STACK_VERSION="0.15.0"
 
 # docker image build \
 #     -t pypi_scraper/db:latest \
