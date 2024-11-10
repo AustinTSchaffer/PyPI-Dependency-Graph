@@ -142,6 +142,11 @@ class DistributionProcessingService:
                     for req_idx in range(len(raw_req_dist)):
                         try:
                             requirement_text = raw_req_dist[req_idx]
+
+                            # Some metadata files have blank "RequiresDist:" lines.
+                            if not requirement_text or str.isspace(requirement_text):
+                                continue
+
                             requirements.append(DistributionProcessingService.convert_requirement(
                                 distribution_id=distribution.distribution_id,
                                 requirement=requirement_text,

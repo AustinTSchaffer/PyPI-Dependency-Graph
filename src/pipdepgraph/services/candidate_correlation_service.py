@@ -70,6 +70,11 @@ class CandidateCorrelationService:
         failure.
         """
 
+        # Related to a bug with metadata files that have a blank "RequiresDist:"
+        # entry. There's no point in trying to process an empty package name.
+        if not requirement.dependency_name or str.isspace(requirement.dependency_name):
+            return
+
         try:
             req_specifier_set = packaging.specifiers.SpecifierSet(requirement.version_constraint)
         except Exception:

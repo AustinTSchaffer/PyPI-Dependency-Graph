@@ -1,8 +1,5 @@
 import logging
 import asyncio
-import json
-import queue
-import uuid
 import os
 
 import pika
