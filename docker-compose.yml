@@ -1,11 +1,7 @@
 services:
   db:
     restart: always
-    build:
-      context: .
-      dockerfile: db.Dockerfile
-      tags:
-        - pypi_scraper/db
+    image: postgres:16-alpine
     ports:
       - '5432:5432'
     networks:

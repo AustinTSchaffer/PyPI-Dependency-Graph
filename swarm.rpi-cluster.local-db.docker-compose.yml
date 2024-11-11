@@ -1,6 +1,5 @@
 services:
   db:
-    restart: always
     image: postgres:16-alpine
     networks:
       - db_net
@@ -20,7 +19,6 @@ services:
       - /mnt/ssd/postgres:/var/lib/postgresql/data
 
   broker:
-    restart: always
     image: rabbitmq:3-management-alpine
     networks:
       - broker_net
@@ -42,7 +40,6 @@ services:
 
   debezium:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/debezium:0.1.0
-    container_name: debezium
     healthcheck:
       test: curl http://debezium:8081/q/health || exit 1
       interval: 5s
@@ -51,6 +48,9 @@ services:
     depends_on:
       - db
       - broker
+    networks:
+      - broker_net
+      - db_net
     deploy:
       restart_policy:
         condition: any
