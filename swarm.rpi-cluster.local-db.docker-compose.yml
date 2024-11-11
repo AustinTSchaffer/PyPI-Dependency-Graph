@@ -122,7 +122,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 20
+      replicas: 0
       placement:
         constraints:
           - node.labels.role==app
