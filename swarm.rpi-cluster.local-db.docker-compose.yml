@@ -40,6 +40,28 @@ services:
     volumes:
       - broker:/var/lib/rabbitmq
 
+  debezium:
+    image: quay.io/debezium/server:2.5
+    container_name: debezium
+    healthcheck:
+      test: curl http://debezium:8081/q/health || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - db
+      - broker
+    deploy:
+      restart_policy:
+        condition: any
+      placement:
+          constraints:
+            - node.labels.role==broker
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./debezium/debezium.rpi-cluster-local-db.properties:/debezium/conf/application.properties:readonly
+
   names_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
     command: ["python", "src/pipdepgraph/entrypoints/process_package_names_rmq.py"]

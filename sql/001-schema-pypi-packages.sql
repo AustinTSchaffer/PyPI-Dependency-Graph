@@ -122,11 +122,18 @@ create index
     using btree
     (requirement_id);
 
+--
+-- pypi_packages.candidates
+--
+
 -- Implemented as a separate table with the same keyspace as "requirements", mostly because
 -- the schema isn't "locked in" yet, and I don't want to totally screw up the "requirements"
 -- table, after I just spent a few weeks fixing it. Also, the records in this table will likely
 -- be updated as new packages are published, unlike records in the "requirements" table, which
 -- are static, parsed directly from immutable files from PyPI.org, and saved directly to postgres.
+--
+-- This was implemented as single row arrays as opposed to multiple rows, since it's likely
+-- that 
 
 create table pypi_packages.candidates (
 	requirement_id uuid primary key,
