@@ -9,6 +9,11 @@ services:
       POSTGRES_USER: pypi_scraper
       POSTGRES_PASSWORD: password
       POSTGRES_DB: defaultdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     deploy:
       restart_policy:
         condition: any
@@ -29,6 +34,8 @@ services:
       RABBITMQ_DEFAULT_USER: pypi_scraper
       RABBITMQ_DEFAULT_PASS: password
       RABBITMQ_DEFAULT_VHOST: pypi_scraper
+      HOSTNAME: broker
+      RABBITMQ_NODENAME: rabbit@broker
     deploy:
       restart_policy:
         condition: any
@@ -37,30 +44,6 @@ services:
             - node.labels.role==broker
     volumes:
       - broker:/var/lib/rabbitmq
-
-  debezium:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/debezium:0.1.0
-    healthcheck:
-      test: curl http://debezium:8081/q/health || exit 1
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      - db
-      - broker
-    networks:
-      - broker_net
-      - db_net
-    deploy:
-      restart_policy:
-        condition: any
-      placement:
-          constraints:
-            - node.labels.role==broker
-    ports:
-      - "8081:8080"
-    volumes:
-      - ./debezium/debezium.rpi-cluster-local-db.properties:/debezium/conf/application.properties:readonly
 
   names_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
