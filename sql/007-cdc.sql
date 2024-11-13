@@ -2,7 +2,9 @@ create schema cdc;
 grant all on schema cdc to pypi_scraper;
 
 create user cdc_user with password 'password';
-grant select update on all tables in schema cdc to cdc_user;
+grant select on all tables in schema cdc to cdc_user;
+grant insert on all tables in schema cdc to cdc_user;
+grant update on all tables in schema cdc to cdc_user;
 
 create table if not exists cdc.event_log (
     "event_id" bigserial primary key,

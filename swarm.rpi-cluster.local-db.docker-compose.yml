@@ -51,7 +51,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 0
+      replicas: 16
       placement:
         constraints:
           - node.labels.role==app
@@ -77,7 +77,7 @@ services:
     deploy:
       restart_policy:
         condition: any
-      replicas: 0
+      replicas: 16
       placement:
         constraints:
           - node.labels.role==app
@@ -123,6 +123,33 @@ services:
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
       RABBITMQ_CTAG_PREFIX: "candidate_correlator.{{.Task.Slot}}."
+    depends_on:
+      - db
+      - broker
+
+  cdc:
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.17.0
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.role==broker
+    command: ["python", "src/pipdepgraph/entrypoints/cdc.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: cdc_user
+      POSTGRES_PASSWORD: password
+
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
     depends_on:
       - db
       - broker
