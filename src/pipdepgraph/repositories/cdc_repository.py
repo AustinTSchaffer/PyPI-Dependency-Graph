@@ -49,10 +49,11 @@ class CdcRepository:
                 query += " where el.event_id > %s "
                 params.append(event_id_offset)
 
-            query += " order by el.event_id asc;"
+            query += " order by el.event_id asc limit %s; "
+            params.append(constants.CDC_EVENT_LOG_REPO_ITER_BATCH_SIZE)
 
             await cursor.execute(query, params)
-            records = await cursor.fetchmany(size=constants.CDC_EVENT_LOG_REPO_ITER_BATCH_SIZE)
+            records = await cursor.fetchall()
 
             max_event_id_seen = None
             while records:
@@ -66,13 +67,11 @@ class CdcRepository:
 
                     yield event
 
-                records = await cursor.fetchmany(size=constants.CDC_EVENT_LOG_REPO_ITER_BATCH_SIZE)
-
                 if auto_upsert_offset:
                     await self.upsert_offset(table_names.CDC_EVENT_LOG, max_event_id_seen)
 
-            if max_event_id_seen is not None and auto_upsert_offset:
-                await self.upsert_offset(table_names.CDC_EVENT_LOG, max_event_id_seen)
+                await cursor.execute(query, params)
+                records = await cursor.fetchall()
 
 
     async def upsert_offset(
