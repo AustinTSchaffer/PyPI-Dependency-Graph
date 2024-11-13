@@ -13,24 +13,37 @@ class CdcRepository:
         self.db_pool = db_pool
 
 
+    async def get_event_log_offset(self) -> int:
+        async with self.db_pool.connection() as conn, conn.cursor(
+            row_factory=dict_row, name='iter_event_log'
+        ) as cursor:
+
+            query = f"select o.event_id event_id from {table_names.CDC_OFFSETS} o where o.table = %s;"
+            params = [table_names.CDC_EVENT_LOG]
+            await cursor.execute(query, params)
+            result = await cursor.fetchall()
+
+            if len(result) > 1:
+                raise ValueError(f"{table_names.CDC_OFFSETS} has more than one entry for table {table_names.CDC_EVENT_LOG}")
+
+            elif len(result) == 1:
+                event_id_offset = result[0]["event_id"]
+
+            else:
+                await self.upsert_offset(table_names.CDC_EVENT_LOG, -1)
+                event_id_offset = -1
+
+            return event_id_offset
+
+
     async def iter_event_log(
         self,
-        from_beginning: bool = False,
         auto_upsert_offset: bool = True,
     ) -> AsyncIterable[models.EventLogEntry]:
         async with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row, name='iter_event_log'
         ) as cursor:
-            event_id_offset = None
-            if not from_beginning:
-                query = f"select o.event_id event_id from {table_names.CDC_OFFSETS} o where o.table = %s;"
-                params = [table_names.CDC_EVENT_LOG]
-                await cursor.execute(query, params)
-                result = await cursor.fetchall()
-                if len(result) > 1:
-                    raise ValueError(f"{table_names.CDC_OFFSETS} has more than one entry for table {table_names.CDC_EVENT_LOG}")
-                if len(result) == 1:
-                    event_id_offset = result[0]["event_id"]
+            event_id_offset = await self.get_event_log_offset()
 
             query = f"""
             select
@@ -42,15 +55,12 @@ class CdcRepository:
                 el.after,
                 el.timestamp
             from {table_names.CDC_EVENT_LOG} el
-            """
+            where el.event_id > %s
+            order by el.event_id asc
+            limit %s
+            ;"""
 
-            params = []
-            if event_id_offset is not None:
-                query += " where el.event_id > %s "
-                params.append(event_id_offset)
-
-            query += " order by el.event_id asc limit %s; "
-            params.append(constants.CDC_EVENT_LOG_REPO_ITER_BATCH_SIZE)
+            params = [event_id_offset, constants.CDC_EVENT_LOG_REPO_ITER_BATCH_SIZE]
 
             await cursor.execute(query, params)
             records = await cursor.fetchall()
@@ -70,6 +80,7 @@ class CdcRepository:
                 if auto_upsert_offset:
                     await self.upsert_offset(table_names.CDC_EVENT_LOG, max_event_id_seen)
 
+                params[0] = max_event_id_seen
                 await cursor.execute(query, params)
                 records = await cursor.fetchall()
 
