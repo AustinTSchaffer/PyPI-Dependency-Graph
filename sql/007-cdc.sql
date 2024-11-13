@@ -27,19 +27,21 @@ alter table cdc.offsets
 create or replace function cdc.event_log_insert_tr()
     returns trigger as $body$
     begin
-        insert into cdc.event_log (
-            "operation",
-            "schema",
-            "table",
-            "before",
-            "after"
-        ) values (
-            tg_op::text,
-            tg_table_schema::text,
-            tg_table_name::text,
-            row_to_json(old),
-            row_to_json(new)
-        );
+        if tg_op <> 'UPDATE' or old <> new then
+            insert into cdc.event_log (
+                "operation",
+                "schema",
+                "table",
+                "before",
+                "after"
+            ) values (
+                tg_op::text,
+                tg_table_schema::text,
+                tg_table_name::text,
+                row_to_json(old),
+                row_to_json(new)
+            );
+        end if;
 
         if tg_op = 'DELETE' then
             return old;
