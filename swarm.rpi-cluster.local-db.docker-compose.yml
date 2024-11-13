@@ -128,7 +128,7 @@ services:
       - broker
 
   cdc:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.17.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.17.1
     deploy:
       restart_policy:
         condition: on-failure
