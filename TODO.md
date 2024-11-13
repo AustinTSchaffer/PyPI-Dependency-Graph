@@ -1,6 +1,6 @@
 # TODO
 
-- Set up app for CDC
+- Set up cron for pruning cdc.event_log
 - Switch from the legacy API to the simple index API (where appropriate). We just need to pass request header `Accept: application/vnd.pypi.simple.v1+json` in order to get enriched output.
 - Currently not parsing platform compatibility from filenames.
   - Have a process for parsing that info from filenames of wheels.
