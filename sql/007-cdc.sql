@@ -15,10 +15,12 @@ create table if not exists cdc.event_log (
 );
 
 create table if not exists cdc.offsets (
-    "schema" text not null,
     "table" text not null,
     "event_id" bigint not null
 );
+
+alter table cdc.offsets
+    add unique ("table");
 
 create or replace function cdc.event_log_insert_tr()
     returns trigger as $body$
@@ -45,11 +47,12 @@ create or replace function cdc.event_log_insert_tr()
     end;
 $body$ language plpgsql;
 
-create or replace trigger cdc_event_log_insert
-    before insert or update or delete
-    on pypi_packages.package_names
-    for each row
-    execute function cdc.event_log_insert_tr();
+-- Not currently needed.
+-- create or replace trigger cdc_event_log_insert
+--     before insert or update or delete
+--     on pypi_packages.package_names
+--     for each row
+--     execute function cdc.event_log_insert_tr();
 
 create or replace trigger cdc_event_log_insert
     before insert or update or delete
@@ -57,11 +60,12 @@ create or replace trigger cdc_event_log_insert
     for each row
     execute function cdc.event_log_insert_tr();
 
-create or replace trigger cdc_event_log_insert
-    before insert or update or delete
-    on pypi_packages.distributions
-    for each row
-    execute function cdc.event_log_insert_tr();
+-- Not currently needed.
+-- create or replace trigger cdc_event_log_insert
+--     before insert or update or delete
+--     on pypi_packages.distributions
+--     for each row
+--     execute function cdc.event_log_insert_tr();
 
 create or replace trigger cdc_event_log_insert
     before insert or update or delete
@@ -69,8 +73,9 @@ create or replace trigger cdc_event_log_insert
     for each row
     execute function cdc.event_log_insert_tr();
 
-create or replace trigger cdc_event_log_insert
-    before insert or update or delete
-    on pypi_packages.candidates
-    for each row
-    execute function cdc.event_log_insert_tr();
+-- Not currently needed.
+-- create or replace trigger cdc_event_log_insert
+--     before insert or update or delete
+--     on pypi_packages.candidates
+--     for each row
+--     execute function cdc.event_log_insert_tr();
