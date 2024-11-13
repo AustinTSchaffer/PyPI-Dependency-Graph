@@ -95,3 +95,19 @@ class RabbitMqPublishService:
             return
         with self.rmq_conn_factory() as connection, connection.channel() as channel:
             _publish(channel)
+
+    def publish_cdc_event_log_entry(
+        self, event: models.EventLogEntry, channel: pika.channel.Channel = None
+    ):
+        def _publish(channel: pika.channel.Channel):
+            channel.basic_publish(
+                exchange=constants.RABBITMQ_EXCHANGE,
+                routing_key=f"cdc.{event.schema}.{event.table}.{event.event_id}",
+                body=event.to_json(),
+            )
+
+        if channel:
+            _publish(channel)
+            return
+        with self.rmq_conn_factory() as connection, connection.channel() as channel:
+            _publish(channel)

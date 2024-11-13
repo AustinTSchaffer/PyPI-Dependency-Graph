@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional
+from typing import Literal, Optional
 import datetime
 import uuid
 import json
@@ -192,4 +192,44 @@ class Candidate:
             requirement_id=data.get("requirement_id", None),
             candidate_versions=data.get("candidate_versions", None),
             candidate_version_ids=data.get("candidate_version_ids", None),
+        )
+
+
+@dataclasses.dataclass
+class EventLogEntry:
+    event_id: int
+    operation: Literal["INSERT", "UPDATE", "DELETE"]
+    schema: str
+    table: str
+    before: dict | str | None
+    after: dict | str | None
+    timestamp: datetime.datetime
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "EventLogEntry":
+        return cls(
+            event_id=data.get("event_id", None),
+            operation=data.get("operation", None),
+            schema=data.get("schema", None),
+            table=data.get("table", None),
+            before=data.get("before", None),
+            after=data.get("after", None),
+            timestamp=data.get("timestamp", None),
+        )
+
+    def to_json(self) -> str:
+        return json.dumps(
+            dict(
+                event_id=self.event_id,
+                operation=self.operation,
+                schema=self.schema,
+                table=self.table,
+                before=self.before,
+                after=self.after,
+                timestamp=(
+                    None
+                    if self.timestamp is None
+                    else self.timestamp.isoformat("T")
+                )
+            )
         )
