@@ -46,7 +46,7 @@ services:
       - broker:/var/lib/rabbitmq
 
   names_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.18.0
     command: ["python", "src/pipdepgraph/entrypoints/process_package_names_rmq.py"]
     deploy:
       restart_policy:
@@ -73,7 +73,7 @@ services:
       - broker
 
   dists_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.18.0
     deploy:
       restart_policy:
         condition: any
@@ -101,7 +101,7 @@ services:
       - broker
 
   candidate_correlator:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.18.0
     deploy:
       restart_policy:
         condition: any
@@ -128,7 +128,7 @@ services:
       - broker
 
   cdc:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.17.2
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.18.0
     deploy:
       restart_policy:
         condition: on-failure
@@ -155,7 +155,7 @@ services:
       - broker
 
   unprocessed_record_loader:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.18.0
     deploy:
       restart_policy:
         condition: on-failure
@@ -189,7 +189,7 @@ services:
       - broker
 
   pypi_loader:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.16.1
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:0.18.0
     deploy:
       restart_policy:
         condition: on-failure
