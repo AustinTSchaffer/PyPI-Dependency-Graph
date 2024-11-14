@@ -42,7 +42,10 @@ async def main():
             try:
                 event = event_queue.get(timeout=5.0)
                 if event.operation == 'INSERT' or event.operation == 'UPDATE':
-                    rmq_pub.publish_requirement_dict_for_candidate_correlation(event.after)
+                    rmq_pub.publish_requirement_dict_for_candidate_correlation(
+                        event.after,
+                        channel=channel,
+                    )
                 ack_queue.put(True)
 
             except queue.Empty as ex:

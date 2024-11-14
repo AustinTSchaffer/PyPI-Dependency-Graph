@@ -35,7 +35,7 @@ async def main():
 
         logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
         rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(
-            common.initialize_rabbitmq_connection
+            rabbitmq.initialize_rabbitmq_connection
         )
 
         logger.info(

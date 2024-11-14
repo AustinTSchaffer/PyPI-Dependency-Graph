@@ -68,7 +68,7 @@ services:
       - broker
 
   dists_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.1
     deploy:
       restart_policy:
         condition: any
@@ -150,7 +150,7 @@ services:
       - broker
 
   cdc_requirements:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.1
     deploy:
       restart_policy:
         condition: on-failure

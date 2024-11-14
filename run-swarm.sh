@@ -2,7 +2,7 @@
 
 set -e
 
-export APP_VERSION="1.0.0"
+export APP_VERSION="1.0.1"
 
 docker image build \
     -t pypi_scraper/app:latest \
