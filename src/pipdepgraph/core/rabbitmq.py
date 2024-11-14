@@ -56,13 +56,13 @@ def start_rabbitmq_consume_thread[
 
     consume_from_rabbitmq_thread = threading.Thread(
         target=consume_from_rabbitmq_target,
-        args=[
-            rabbitmq_queue_name,
-            model_factory,
-            model_queue,
-            ack_queue,
-            prefetch_count,
-        ],
+        kwargs=dict(
+            rabbitmq_queue_name=rabbitmq_queue_name,
+            model_factory=model_factory,
+            model_queue=model_queue,
+            ack_queue=ack_queue,
+            prefetch_count=prefetch_count,
+        ),
     )
 
     consume_from_rabbitmq_thread.start()

@@ -210,7 +210,6 @@ services:
       RABBITMQ_VHOST: pypi_scraper
       RABBITMQ_USERNAME: pypi_scraper
       RABBITMQ_PASSWORD: password
-      RABBITMQ_CTAG_PREFIX: "pypi_loader.{{.Task.Slot}}."
     depends_on:
       - db
       - broker
