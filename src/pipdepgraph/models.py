@@ -201,8 +201,8 @@ class EventLogEntry:
     operation: Literal["INSERT", "UPDATE", "DELETE"]
     schema: str
     table: str
-    before: dict | str | None
-    after: dict | str | None
+    before: dict | None
+    after: dict | None
     timestamp: datetime.datetime
 
     @classmethod

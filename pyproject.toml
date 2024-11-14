@@ -28,6 +28,7 @@ build-backend = "hatchling.build"
 managed = true
 dev-dependencies = [
     "bpython>=0.24",
+    "mypy>=1.13.0",
 ]
 
 [tool.hatch.metadata]
@@ -35,3 +36,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pipdepgraph"]
+
+
+[tool.mypy]
+enable_incomplete_feature = "NewGenericSyntax"
+check_untyped_defs = true

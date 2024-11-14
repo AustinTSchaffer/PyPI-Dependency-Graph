@@ -47,7 +47,7 @@ class PackageNameProcessingService:
         vr: versions_repository.VersionsRepository,
         dr: distributions_repository.DistributionsRepository,
         pypi: pypi_api.PypiApi,
-        rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None,
+        rmq_pub: rabbitmq_publish_service.RabbitMqPublishService | None = None,
     ):
         self.db_pool = db_pool
         self.package_names_repo = pnr

@@ -11,7 +11,7 @@ from pipdepgraph import models, constants
 
 
 class RabbitMqPublishService:
-    def __init__(self, rmq_conn_factory: Callable[[], pika.BlockingConnection]):
+    def __init__(self, rmq_conn_factory: Callable[[], pika.BlockingConnection] | None):
         self.rmq_conn_factory = rmq_conn_factory
 
     def publish_package_name(

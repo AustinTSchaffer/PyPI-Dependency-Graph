@@ -3,7 +3,7 @@ import itertools
 
 from psycopg_pool import AsyncConnectionPool
 from psycopg import AsyncCursor
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row, DictRow
 
 from pipdepgraph import models, constants
 from pipdepgraph.repositories import table_names
@@ -30,7 +30,7 @@ class VersionsRepository:
     async def insert_versions(
         self,
         versions: list[models.Version],
-        cursor: AsyncCursor | None = None,
+        cursor: AsyncCursor[DictRow] | None = None,
     ) -> None:
         """
         Inserts the specified version records into the database, using
@@ -42,7 +42,7 @@ class VersionsRepository:
         if not versions:
             return None
 
-        async def _insert_versions(cursor: AsyncCursor) -> None:
+        async def _insert_versions(cursor: AsyncCursor[DictRow]) -> None:
             PARAMS_PER_INSERT = 13
             for version_batch in itertools.batched(
                 versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
@@ -76,7 +76,7 @@ class VersionsRepository:
                     is_devrelease = EXCLUDED.is_devrelease
                 ;"""
 
-                params = [None] * PARAMS_PER_INSERT * len(version_batch)
+                params: list = [None] * PARAMS_PER_INSERT * len(version_batch)
                 offset = 0
                 for version in version_batch:
                     params[offset + 0] = version.package_name
@@ -102,12 +102,14 @@ class VersionsRepository:
                 await cursor.execute(query, params)
 
         if cursor:
-            return await _insert_versions(cursor)
+            await _insert_versions(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                result = await _insert_versions(cursor)
-                await cursor.execute("commit;")
-                return result
+            async with (
+                self.db_pool.connection() as conn,
+                conn.cursor(row_factory=dict_row) as local_cursor
+            ):
+                await _insert_versions(local_cursor)
+                await local_cursor.execute("commit;")
 
 
     async def update_version(
