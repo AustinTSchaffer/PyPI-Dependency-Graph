@@ -14,7 +14,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.load_top_8000_package_names")
+logger = logging.getLogger("pipdepgraph.entrypoints.rmq_pub.popular_package_names")
 
 
 async def main():

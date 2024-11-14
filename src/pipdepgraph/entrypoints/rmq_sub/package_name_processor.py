@@ -26,7 +26,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.process_package_names_rmq")
+logger = logging.getLogger("pipdepgraph.entrypoints.rmq_sub.package_name_processor")
 
 
 async def main():

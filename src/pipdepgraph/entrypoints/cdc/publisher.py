@@ -11,7 +11,7 @@ from pipdepgraph.repositories import (
     cdc_repository,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.cdc")
+logger = logging.getLogger("pipdepgraph.entrypoints.cdc.publisher")
 
 
 async def main():

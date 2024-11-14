@@ -17,18 +17,14 @@ class RabbitMqPublishService:
     def publish_package_name(
         self, kpn: models.PackageName | str, channel: pika.channel.Channel = None
     ):
-        package_name = (
-            kpn.package_name if isinstance(kpn, models.PackageName) else kpn
-        )
+        package_name = kpn.package_name if isinstance(kpn, models.PackageName) else kpn
 
         def _publish(channel: pika.channel.Channel):
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_NAMES_RK_PREFIX}{package_name}",
                 body=(
-                    kpn.to_json()
-                    if isinstance(kpn, models.PackageName)
-                    else f'"{kpn}"'
+                    kpn.to_json() if isinstance(kpn, models.PackageName) else f'"{kpn}"'
                 ),
             )
 
@@ -88,6 +84,22 @@ class RabbitMqPublishService:
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req.requirement_id}",
                 body=req.to_json(),
+            )
+
+        if channel:
+            _publish(channel)
+            return
+        with self.rmq_conn_factory() as connection, connection.channel() as channel:
+            _publish(channel)
+
+    def publish_requirement_dict_for_candidate_correlation(
+        self, req: dict, channel: pika.channel.Channel = None
+    ):
+        def _publish(channel: pika.channel.Channel):
+            channel.basic_publish(
+                exchange=constants.RABBITMQ_EXCHANGE,
+                routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req['requirement_id']}",
+                body=json.dumps(req),
             )
 
         if channel:
