@@ -10,7 +10,7 @@ import pika.spec
 
 from pipdepgraph import constants
 
-from pipdepgraph.entrypoints import common
+from pipdepgraph.core import common, rabbitmq
 
 from pipdepgraph.repositories import (
     distributions_repository,
@@ -40,11 +40,11 @@ async def main():
 
         logger.info("Initializing RabbitMQ session")
         with (
-            common.initialize_rabbitmq_connection() as rabbitmq_connection,
+            rabbitmq.initialize_rabbitmq_connection() as rabbitmq_connection,
             rabbitmq_connection.channel() as channel,
         ):
             channel: pika.adapters.blocking_connection.BlockingChannel
-            common.declare_rabbitmq_infrastructure(channel)
+            rabbitmq.declare_rabbitmq_infrastructure(channel)
 
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 

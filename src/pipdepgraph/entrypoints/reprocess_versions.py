@@ -2,7 +2,7 @@ import logging
 import asyncio
 
 from pipdepgraph.core import parsing
-from pipdepgraph.entrypoints import common
+from pipdepgraph.core import common
 
 from pipdepgraph.repositories import (
     versions_repository,
