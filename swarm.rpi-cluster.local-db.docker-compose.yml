@@ -14,7 +14,7 @@ services:
         condition: any
       placement:
           constraints:
-            - node.labels.role==db
+            - node.labels.db==1
     volumes:
       - /mnt/ssd/postgres:/var/lib/postgresql/data
 
@@ -36,12 +36,12 @@ services:
         condition: any
       placement:
           constraints:
-            - node.labels.role==broker
+            - node.labels.broker==1
     volumes:
-      - broker:/var/lib/rabbitmq
+      - /var/lib/rabbitmq:/var/lib/rabbitmq
 
   names_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
     command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/package_name_processor.py"]
     deploy:
       restart_policy:
@@ -49,7 +49,7 @@ services:
       replicas: 8
       placement:
         constraints:
-          - node.labels.role==app
+          - node.labels.app==1
     networks:
       - db_net
       - broker_net
@@ -68,14 +68,14 @@ services:
       - broker
 
   dists_processor:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.1
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
     deploy:
       restart_policy:
         condition: any
       replicas: 4
       placement:
         constraints:
-          - node.labels.role==app
+          - node.labels.app==1
     command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/distribution_processor.py"]
     networks:
       - db_net
@@ -96,14 +96,14 @@ services:
       - broker
 
   candidate_correlator:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
     deploy:
       restart_policy:
         condition: any
       replicas: 16
       placement:
         constraints:
-          - node.labels.role==app
+          - node.labels.app==1
     command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/candidate_correlator.py"]
     networks:
       - db_net
@@ -123,14 +123,14 @@ services:
       - broker
 
   cdc:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 1
       placement:
         constraints:
-          - node.labels.role==broker
+          - node.labels.app==1
     command: ["python", "src/pipdepgraph/entrypoints/cdc/publisher.py"]
     networks:
       - db_net
@@ -157,7 +157,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.role==broker
+          - node.labels.app==1
     command: ["python", "src/pipdepgraph/entrypoints/cdc/requirements_subscriber.py"]
     networks:
       - broker_net
@@ -197,14 +197,14 @@ services:
   #     - broker
 
   unprocessed_record_loader:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 0
       placement:
         constraints:
-          - node.labels.role==broker
+          - node.labels.app==1
     command: ["python", "src/pipdepgraph/entrypoints/rmq_pub/unprocessed_records.py"]
     networks:
       - db_net
@@ -231,14 +231,14 @@ services:
       - broker
 
   pypi_loader:
-    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.0
+    image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 0
       placement:
         constraints:
-          - node.labels.role==broker
+          - node.labels.app==1
     command: ["python", "src/pipdepgraph/entrypoints/rmq_pub/pypi_package_names.py"]
     networks:
       - db_net
@@ -259,6 +259,3 @@ services:
 networks:
   db_net:
   broker_net:
-
-volumes:
-  broker:
