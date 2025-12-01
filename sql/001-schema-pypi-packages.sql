@@ -133,7 +133,7 @@ create index
 -- are static, parsed directly from immutable files from PyPI.org, and saved directly to postgres.
 --
 -- This was implemented as single row arrays as opposed to multiple rows, since it's likely
--- that 
+-- that I'm a moron.
 
 create table pypi_packages.candidates (
 	requirement_id uuid primary key,
