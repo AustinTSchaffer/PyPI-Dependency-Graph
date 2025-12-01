@@ -16,7 +16,7 @@ services:
           constraints:
             - node.labels.db==1
     volumes:
-      - /mnt/ssd/postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
 
   broker:
     image: rabbitmq:3-management-alpine
@@ -38,7 +38,7 @@ services:
           constraints:
             - node.labels.broker==1
     volumes:
-      - /var/lib/rabbitmq:/var/lib/rabbitmq
+      - rabbitmq:/var/lib/rabbitmq
 
   names_processor:
     image: rpi-cluster-4b-1gb-1:5000/pypi_scraper/app:1.0.2
@@ -259,3 +259,7 @@ services:
 networks:
   db_net:
   broker_net:
+
+volumes:
+  rabbitmq:
+  postgres:
