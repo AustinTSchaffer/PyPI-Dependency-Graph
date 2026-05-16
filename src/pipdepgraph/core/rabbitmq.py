@@ -55,7 +55,11 @@ def consume_from_rabbitmq[TModel](
             body: bytes,
         ):
             try:
-                payload = json.loads(body)
+                try:
+                    payload = json.loads(body)
+                except json.JSONDecodeError:
+                    payload = body.decode()
+
                 model = model_factory(payload)
                 on_message(model)
                 ch.basic_ack(basic_deliver.delivery_tag)

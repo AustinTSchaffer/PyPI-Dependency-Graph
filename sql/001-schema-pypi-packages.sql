@@ -89,7 +89,7 @@ alter table pypi_packages.distributions
 -- pypi_packages.requirements
 --
 create table pypi_packages.requirements (
-    requirement_id uuid not null,
+    requirement_id uuid not null default gen_random_uuid() primary key,
     distribution_id uuid not null,
     extras text not null,
     dependency_name text not null,
@@ -141,7 +141,7 @@ create table pypi_packages.candidates (
 	candidate_version_ids uuid[]
 );
 
-alter table candidates
+alter table pypi_packages.candidates
     add foreign key (requirement_id)
-    references requirements (requirement_id)
+    references pypi_packages.requirements (requirement_id)
     on delete cascade;

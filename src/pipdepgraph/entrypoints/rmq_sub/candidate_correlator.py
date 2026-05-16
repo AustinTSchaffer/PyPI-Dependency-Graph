@@ -28,6 +28,7 @@ def main():
         logger.info(
             "Initializing candidate_correlation_service.CandidateCorrelationService"
         )
+
         ccs = candidate_correlation_service.CandidateCorrelationService(
             db_pool=db_pool,
             rr=rr,
