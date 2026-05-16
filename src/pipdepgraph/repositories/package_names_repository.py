@@ -2,6 +2,7 @@ from typing import Iterator, List
 import datetime
 import itertools
 
+import msgspec
 import packaging.utils
 from psycopg_pool import ConnectionPool
 from psycopg import Cursor
@@ -68,7 +69,7 @@ class PackageNamesRepository:
 
                 if return_inserted:
                     rows = cursor.fetchall()
-                    output.extend(map(models.PackageName.from_dict, rows))
+                    output.extend(msgspec.convert(r, models.PackageName) for r in rows)
 
             return output
 
@@ -175,7 +176,7 @@ class PackageNamesRepository:
             records = cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
-                    yield models.PackageName.from_dict(record)
+                    yield msgspec.convert(record, models.PackageName)
                 records = cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
 
     def _propagate_dependency_names(self, cursor: Cursor):

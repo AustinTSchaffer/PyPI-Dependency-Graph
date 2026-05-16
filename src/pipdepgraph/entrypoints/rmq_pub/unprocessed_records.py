@@ -75,12 +75,6 @@ def main():
                     logger.debug("Loading Package Name: %s", kpn.package_name)
                     rmq_pub.publish_package_name(kpn, channel=channel)
 
-            if constants.UPL_LOAD_INCOMPLETE_REQUIREMENTS:
-                logger.info("Loading all incomplete requirements records into RabbitMQ")
-                for req in rr.iter_requirements(dependency_extras_arr_is_none=True):
-                    logger.debug("Loading Requirement: %s", req)
-                    rmq_pub.publish_requirement_for_reprocessing(req, channel=channel)
-
             if constants.UPL_LOAD_REQUIREMENTS_FOR_CANDIDATE_CORRELATION:
                 logger.info("Loading all requirements records into RabbitMQ")
                 for req in rr.iter_requirements():

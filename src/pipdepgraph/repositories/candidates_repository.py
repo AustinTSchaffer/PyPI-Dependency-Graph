@@ -1,5 +1,4 @@
 import itertools
-import dataclasses
 
 from psycopg_pool import ConnectionPool
 from psycopg import Cursor

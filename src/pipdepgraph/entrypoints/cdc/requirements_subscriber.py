@@ -1,5 +1,7 @@
 import logging
 
+import msgspec.json
+
 from pipdepgraph import constants, models
 from pipdepgraph.services import rabbitmq_publish_service
 from pipdepgraph.core import rabbitmq
@@ -21,7 +23,7 @@ def main():
     rabbitmq.consume_from_rabbitmq(
         rabbitmq_queue_name=constants.RABBITMQ_CDC_REQS_QNAME,
         prefetch_count=constants.RABBITMQ_CDC_REQS_SUB_PREFETCH,
-        model_factory=models.EventLogEntry.from_dict,
+        model_factory=lambda b: msgspec.json.decode(b, type=models.EventLogEntry),
         on_message=process,
     )
 

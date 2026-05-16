@@ -1,7 +1,7 @@
-import json
 import threading
 from collections.abc import Callable
 
+import msgspec.json
 import pika
 import pika.adapters.blocking_connection
 import pika.channel
@@ -23,9 +23,7 @@ class RabbitMqPublishService:
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_NAMES_RK_PREFIX}{package_name}",
-                body=(
-                    kpn.to_json() if isinstance(kpn, models.PackageName) else f'"{kpn}"'
-                ),
+                body=msgspec.json.encode(kpn),
             )
 
         if channel:
@@ -46,7 +44,7 @@ class RabbitMqPublishService:
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_DISTS_RK_PREFIX}{vd.distribution_id}",
-                body=vd.to_json(),
+                body=msgspec.json.encode(vd),
             )
 
         if channel:
@@ -60,22 +58,6 @@ class RabbitMqPublishService:
             for vd in vds:
                 self.publish_distribution(vd, channel=channel)
 
-    def publish_requirement_for_reprocessing(
-        self, req: models.Requirement, channel: pika.channel.Channel = None
-    ):
-        def _publish(channel: pika.channel.Channel):
-            channel.basic_publish(
-                exchange=constants.RABBITMQ_EXCHANGE,
-                routing_key=f"{constants.RABBITMQ_REPROCESS_REQS_RK_PREFIX}.of.{req.distribution_id}",
-                body=req.to_json(),
-            )
-
-        if channel:
-            _publish(channel)
-            return
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            _publish(channel)
-
     def publish_requirement_for_candidate_correlation(
         self, req: models.Requirement, channel: pika.channel.Channel = None
     ):
@@ -83,7 +65,7 @@ class RabbitMqPublishService:
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req.requirement_id}",
-                body=req.to_json(),
+                body=msgspec.json.encode(req),
             )
 
         if channel:
@@ -99,7 +81,7 @@ class RabbitMqPublishService:
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req['requirement_id']}",
-                body=json.dumps(req),
+                body=msgspec.json.encode(req),
             )
 
         if channel:
@@ -115,7 +97,7 @@ class RabbitMqPublishService:
             channel.basic_publish(
                 exchange=constants.RABBITMQ_EXCHANGE,
                 routing_key=f"cdc.{event.schema}.{event.table}.{event.event_id}",
-                body=event.to_json(),
+                body=msgspec.json.encode(event),
             )
 
         if channel:

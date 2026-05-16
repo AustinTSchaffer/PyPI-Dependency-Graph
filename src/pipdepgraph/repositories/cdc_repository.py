@@ -1,5 +1,6 @@
 from typing import Iterator
 
+import msgspec
 from psycopg_pool import ConnectionPool
 from psycopg import Cursor
 from psycopg.rows import dict_row
@@ -68,7 +69,7 @@ class CdcRepository:
             max_event_id_seen = None
             while records:
                 for record in records:
-                    event = models.EventLogEntry.from_dict(record)
+                    event = msgspec.convert(record, models.EventLogEntry)
 
                     if max_event_id_seen is None:
                         max_event_id_seen = event.event_id

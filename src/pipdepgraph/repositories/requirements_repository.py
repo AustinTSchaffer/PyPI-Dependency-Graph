@@ -1,7 +1,7 @@
 from typing import Iterator
 import itertools
-import dataclasses
 
+import msgspec
 from psycopg_pool import ConnectionPool
 from psycopg import Cursor
 from psycopg.rows import dict_row
@@ -28,7 +28,7 @@ class RequirementsRepository:
             return
 
         def _insert_requirements(cursor: Cursor):
-            PARAMS_PER_INSERT = 8
+            PARAMS_PER_INSERT = 6
             for requirement_batch in itertools.batched(
                 requirements,
                 constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
@@ -38,19 +38,17 @@ class RequirementsRepository:
                 (
                     requirement_id,
                     distribution_id,
-                    extras,
+                    marker,
                     dependency_name,
-                    dependency_extras,
                     version_constraint,
-                    dependency_extras_arr,
-                    parsable,
-                    specifier_set
+                    dependency_extras,
+                    parsable
                 )
                 values
                 """
 
                 query += ",".join(
-                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, parse_specifier_set(%s::text) ) " for _ in range(len(requirement_batch))
+                    " ( gen_random_uuid(), %s, %s, %s, %s, %s, %s ) " for _ in range(len(requirement_batch))
                 )
                 query += " on conflict do nothing; "
 
@@ -58,13 +56,11 @@ class RequirementsRepository:
                 offset = 0
                 for req in requirement_batch:
                     params[offset + 0] = req.distribution_id
-                    params[offset + 1] = req.extras
+                    params[offset + 1] = req.marker
                     params[offset + 2] = req.dependency_name
-                    params[offset + 3] = req.dependency_extras
-                    params[offset + 4] = req.version_constraint
-                    params[offset + 5] = req.dependency_extras_arr
-                    params[offset + 6] = req.parsable
-                    params[offset + 7] = req.version_constraint
+                    params[offset + 3] = req.version_constraint
+                    params[offset + 4] = req.dependency_extras
+                    params[offset + 5] = req.parsable
                     offset += PARAMS_PER_INSERT
 
                 cursor.execute(query, params)
@@ -74,59 +70,6 @@ class RequirementsRepository:
         else:
             with self.db_pool.connection() as conn, conn.cursor() as cursor:
                 _insert_requirements(cursor)
-                cursor.execute("commit;")
-
-    def update_requirement(
-        self,
-        requirement: models.Requirement,
-        cursor: Cursor | None = None,
-    ) -> None:
-        def _update_requirement(cursor: Cursor):
-            if requirement.requirement_id:
-                sql = f"""
-                update {table_names.REQUIREMENTS} set
-                    dependency_extras_arr = %s
-                where
-                    requirement_id = %s
-                ;"""
-
-                params = (
-                    requirement.dependency_extras_arr,
-                    requirement.requirement_id,
-                )
-
-                cursor.execute(sql, params)
-            else:
-                sql = f"""
-                update {table_names.REQUIREMENTS} set
-                    requirement_id = gen_random_uuid(),
-                    dependency_extras_arr = %s,
-                    extras = %s
-                where
-                    distribution_id = %s and
-                    (extras = %s or (%s = '' and extras is null)) and
-                    dependency_name = %s and
-                    dependency_extras = %s and
-                    version_constraint = %s
-                ;"""
-
-                params = (
-                    requirement.dependency_extras_arr,
-                    requirement.extras,
-                    requirement.distribution_id,
-                    requirement.extras, requirement.extras,
-                    requirement.dependency_name,
-                    requirement.dependency_extras,
-                    requirement.version_constraint,
-                )
-
-                cursor.execute(sql, params)
-
-        if cursor:
-            _update_requirement(cursor)
-        else:
-            with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                _update_requirement(cursor)
                 cursor.execute("commit;")
 
 
@@ -270,5 +213,5 @@ class RequirementsRepository:
             records = cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
-                    yield models.Requirement.from_dict(record)
+                    yield msgspec.convert(record, models.Requirement)
                 records = cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)

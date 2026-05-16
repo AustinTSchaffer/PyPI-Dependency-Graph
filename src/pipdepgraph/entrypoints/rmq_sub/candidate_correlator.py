@@ -1,5 +1,7 @@
 import logging
 
+import msgspec.json
+
 from pipdepgraph import constants, models
 from pipdepgraph.core import rabbitmq
 from pipdepgraph.core import common
@@ -44,7 +46,7 @@ def main():
         rabbitmq.consume_from_rabbitmq(
             rabbitmq_queue_name=constants.RABBITMQ_REQS_CAND_CORR_QNAME,
             prefetch_count=constants.RABBITMQ_REQS_CAND_CORR_SUB_PREFETCH,
-            model_factory=models.Requirement.from_dict,
+            model_factory=lambda b: msgspec.json.decode(b, type=models.Requirement),
             on_message=process,
         )
 

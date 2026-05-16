@@ -1,6 +1,7 @@
 from typing import Iterator
 import itertools
 
+import msgspec
 from psycopg_pool import ConnectionPool
 from psycopg import Cursor
 from psycopg.rows import dict_row
@@ -209,5 +210,5 @@ class DistributionsRepository:
             records = cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
-                    yield models.Distribution.from_dict(record)
+                    yield msgspec.convert(record, models.Distribution)
                 records = cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)

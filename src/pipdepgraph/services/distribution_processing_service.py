@@ -60,17 +60,16 @@ class DistributionProcessingService:
         return models.Requirement(
             requirement_id=None,
             distribution_id=distribution_id,
-            extras=(
+            marker=(
                 str(requirement.marker)
                 if requirement.marker
                 else ""
             ),
-            dependency_extras=",".join(requirement.extras),
             dependency_name=packaging.utils.canonicalize_name(
                 requirement.name, validate=True
             ),
+            dependency_extras=list(requirement.extras),
             version_constraint=str(requirement.specifier),
-            dependency_extras_arr=list(requirement.extras),
             parsable=True,
         )
 
@@ -94,6 +93,9 @@ class DistributionProcessingService:
         if not ignore_processed_flag and distribution.processed:
             logger.debug(f"{distribution.distribution_id} - Already processed.")
             return
+
+        if not distribution.distribution_id:
+            raise ValueError(f"Distribution has no ID: {distribution}")
 
         logger.info(
             f"{distribution.distribution_id} - Getting requirements."
@@ -161,10 +163,9 @@ class DistributionProcessingService:
                                     dependency_name=requirement_text,
                                     parsable=False,
                                     # TODO: Can any of these be refined?
-                                    extras="",
-                                    dependency_extras="",
+                                    marker="",
                                     version_constraint="",
-                                    dependency_extras_arr=[],
+                                    dependency_extras=[],
                                 )
                             )
 

@@ -1,6 +1,7 @@
 from typing import Iterator
 import itertools
 
+import msgspec
 from psycopg_pool import ConnectionPool
 from psycopg import Cursor
 from psycopg.rows import dict_row, DictRow
@@ -265,7 +266,13 @@ class VersionsRepository:
             records = cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
-                    yield models.Version.from_dict(record)
+                    yield msgspec.convert(
+                        {
+                            **{k: v for k, v in record.items() if k not in ("pre_0", "pre_1")},
+                            "pre": (record["pre_0"], record["pre_1"]) if record.get("pre_0") is not None else None,
+                        },
+                        models.Version,
+                    )
                 records = cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
 
         if cursor:

@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 from typing import Callable, Any
@@ -55,12 +54,7 @@ def consume_from_rabbitmq[TModel](
             body: bytes,
         ):
             try:
-                try:
-                    payload = json.loads(body)
-                except json.JSONDecodeError:
-                    payload = body.decode()
-
-                model = model_factory(payload)
+                model = model_factory(body)
                 on_message(model)
                 ch.basic_ack(basic_deliver.delivery_tag)
             except Exception as ex:
@@ -106,13 +100,6 @@ def declare_rabbitmq_infrastructure(
         exchange=constants.RABBITMQ_EXCHANGE,
         queue=constants.RABBITMQ_DISTS_QNAME,
         routing_key=constants.RABBITMQ_DISTS_RK,
-    )
-
-    channel.queue_declare(constants.RABBITMQ_REPROCESS_REQS_QNAME, durable=True)
-    channel.queue_bind(
-        exchange=constants.RABBITMQ_EXCHANGE,
-        queue=constants.RABBITMQ_REPROCESS_REQS_QNAME,
-        routing_key=constants.RABBITMQ_REPROCESS_REQS_RK,
     )
 
     channel.queue_declare(constants.RABBITMQ_REQS_CAND_CORR_QNAME, durable=True)

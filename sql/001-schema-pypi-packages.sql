@@ -18,7 +18,6 @@ create table pypi_packages.versions (
     package_name text not null,
     package_version text not null,
     date_discovered timestamp not null default now(),
-
     epoch bigint null,
     package_release bigint[] null,
     pre_0 text null,
@@ -91,11 +90,11 @@ alter table pypi_packages.distributions
 create table pypi_packages.requirements (
     requirement_id uuid not null default gen_random_uuid() primary key,
     distribution_id uuid not null,
-    extras text not null,
+    marker text not null,
     dependency_name text not null,
-    dependency_extras text not null,
+    dependency_extras text[] not null,
     version_constraint text not null,
-    dependency_extras_arr text[] not null
+    parsable boolean not null default false
 );
 
 -- Maybe we can enable this one day.
