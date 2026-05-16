@@ -1,11 +1,4 @@
 import logging
-import queue
-
-import pika
-import pika.adapters.blocking_connection
-import pika.channel
-import pika.delivery_mode
-import pika.spec
 
 from pipdepgraph import constants, models, pypi_api
 from pipdepgraph.core import common, rabbitmq
@@ -55,44 +48,17 @@ def main():
             rmq_pub=rmq_pub,
         )
 
-        logger.info("Starting RabbitMQ consumer thread")
-
-        package_names_queue: queue.Queue[models.PackageName | str] = queue.Queue()
-        ack_queue: queue.Queue[bool] = queue.Queue()
-
-        consume_from_rabbitmq_thread = rabbitmq.start_rabbitmq_consume_thread(
+        logger.info("Running.")
+        rabbitmq.consume_from_rabbitmq(
             rabbitmq_queue_name=constants.RABBITMQ_NAMES_QNAME,
             prefetch_count=constants.RABBITMQ_NAMES_SUB_PREFETCH,
             model_factory=lambda _json: (
                 _json if isinstance(_json, str) else models.PackageName.from_dict(_json)
             ),
-            model_queue=package_names_queue,
-            ack_queue=ack_queue,
+            on_message=lambda model: pnps.process_package_name(
+                model, ignore_date_last_checked=True
+            ),
         )
-
-        logger.info("Running.")
-        while True:
-            package_name = None
-
-            try:
-                package_name = package_names_queue.get(timeout=5.0)
-                pnps.process_package_name(
-                    package_name, ignore_date_last_checked=True
-                )
-                ack_queue.put(True)
-
-            except queue.Empty as ex:
-                if not consume_from_rabbitmq_thread.is_alive():
-                    logger.error("RabbitMQ consumer thread has died.")
-                    return
-
-            except Exception as ex:
-                logger.error(
-                    f"Error while handling Package Name message: {package_name}",
-                    exc_info=ex,
-                )
-                ack_queue.put(False)
-                raise
 
 
 if __name__ == "__main__":

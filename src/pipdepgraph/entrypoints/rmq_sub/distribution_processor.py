@@ -1,5 +1,4 @@
 import logging
-import queue
 
 from pipdepgraph import constants, models, pypi_api
 from pipdepgraph.core import common, rabbitmq
@@ -49,42 +48,13 @@ def main():
             rmq_pub=rmq_pub,
         )
 
-        logger.info("Starting RabbitMQ consumer thread")
-
-        distributions_queue: queue.Queue[models.Distribution] = (
-            queue.Queue()
-        )
-        ack_queue: queue.Queue[bool] = queue.Queue()
-
-        consume_from_rabbitmq_thread = rabbitmq.start_rabbitmq_consume_thread(
+        logger.info("Running.")
+        rabbitmq.consume_from_rabbitmq(
             rabbitmq_queue_name=constants.RABBITMQ_DISTS_QNAME,
             prefetch_count=constants.RABBITMQ_DISTS_SUB_PREFETCH,
             model_factory=models.Distribution.from_dict,
-            model_queue=distributions_queue,
-            ack_queue=ack_queue,
+            on_message=dps.process_distribution,
         )
-
-        logger.info("Running.")
-        while True:
-            distribution = None
-
-            try:
-                distribution = distributions_queue.get(timeout=5.0)
-                dps.process_distribution(distribution)
-                ack_queue.put(True)
-
-            except queue.Empty as ex:
-                if not consume_from_rabbitmq_thread.is_alive():
-                    logger.error("RabbitMQ consumer thread has died.")
-                    return
-
-            except Exception as ex:
-                logger.error(
-                    f"Error while handling Version Distribution message: {distribution}",
-                    exc_info=ex,
-                )
-                ack_queue.put(False)
-                raise
 
 
 if __name__ == "__main__":

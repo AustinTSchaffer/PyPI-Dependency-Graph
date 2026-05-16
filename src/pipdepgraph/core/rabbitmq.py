@@ -1,9 +1,7 @@
-import queue
 import json
 import logging
 import uuid
 from typing import Callable, Any
-import threading
 
 import pika
 import pika.spec
@@ -35,58 +33,13 @@ def initialize_rabbitmq_connection() -> pika.BlockingConnection:
     return rabbitmq_connection
 
 
-def start_rabbitmq_consume_thread[
-    TModel
-](
+def consume_from_rabbitmq[TModel](
     *,
     rabbitmq_queue_name: str,
     model_factory: Callable[[Any], TModel],
-    model_queue: queue.Queue[TModel],
-    ack_queue: queue.Queue[bool],
-    prefetch_count: int,
-) -> threading.Thread:
-    """
-    Starts a thread to run the `consume_from_rabbitmq_target` method, with the given
-    arguments. Returns the thread.
-
-    This exists so that a RabbitMQ consume loop thread can be started from a thread
-    that's running in a separate thread.
-    """
-
-    consume_from_rabbitmq_thread = threading.Thread(
-        target=consume_from_rabbitmq_target,
-        kwargs=dict(
-            rabbitmq_queue_name=rabbitmq_queue_name,
-            model_factory=model_factory,
-            model_queue=model_queue,
-            ack_queue=ack_queue,
-            prefetch_count=prefetch_count,
-        ),
-    )
-
-    consume_from_rabbitmq_thread.start()
-    return consume_from_rabbitmq_thread
-
-
-def consume_from_rabbitmq_target[
-    TModel
-](
-    *,
-    rabbitmq_queue_name: str,
-    model_factory: Callable[[Any], TModel],
-    model_queue: queue.Queue[TModel],
-    ack_queue: queue.Queue[bool],
+    on_message: Callable[[TModel], None],
     prefetch_count: int,
 ):
-    """
-    Consumes records from RabbitMQ, converting them to the specified type, and placing
-    them into the `model_queue`. Expects a response on the `ack_queue` containing a
-    single boolean flag indicating whether the message should be acked or nacked.
-
-    This exists so that a RabbitMQ consume loop thread can be started from a thread
-    that's running in a separate thread.
-    """
-
     with (
         initialize_rabbitmq_connection() as connection,
         connection.channel() as channel,
@@ -95,7 +48,7 @@ def consume_from_rabbitmq_target[
         declare_rabbitmq_infrastructure(channel)
         channel.basic_qos(prefetch_count=prefetch_count)
 
-        def _model_consumer(
+        def _callback(
             ch: pika.channel.Channel,
             basic_deliver: pika.spec.Basic.Deliver,
             properties: pika.spec.BasicProperties,
@@ -104,19 +57,12 @@ def consume_from_rabbitmq_target[
             try:
                 payload = json.loads(body)
                 model = model_factory(payload)
-                model_queue.put(model)
-
-                ack = ack_queue.get()
-
-                if ack:
-                    ch.basic_ack(basic_deliver.delivery_tag)
-                else:
-                    ch.basic_nack(basic_deliver.delivery_tag)
-                    ch.close()
-
+                on_message(model)
+                ch.basic_ack(basic_deliver.delivery_tag)
             except Exception as ex:
                 logger.error(
-                    f"Error while handling message: {basic_deliver}",
+                    "Error while handling message: %s",
+                    basic_deliver,
                     exc_info=ex,
                 )
                 ch.basic_nack(basic_deliver.delivery_tag)
@@ -130,7 +76,7 @@ def consume_from_rabbitmq_target[
 
         channel.basic_consume(
             queue=rabbitmq_queue_name,
-            on_message_callback=_model_consumer,
+            on_message_callback=_callback,
             consumer_tag=consumer_tag,
             auto_ack=False,
         )
