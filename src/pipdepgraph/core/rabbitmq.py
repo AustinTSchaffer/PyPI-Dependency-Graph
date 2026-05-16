@@ -8,7 +8,6 @@ import threading
 import pika
 import pika.spec
 import pika.channel
-import pika.adapters.asyncio_connection
 import pika.adapters.blocking_connection
 import pika.credentials
 
@@ -51,7 +50,7 @@ def start_rabbitmq_consume_thread[
     arguments. Returns the thread.
 
     This exists so that a RabbitMQ consume loop thread can be started from a thread
-    that's running an async context.
+    that's running in a separate thread.
     """
 
     consume_from_rabbitmq_thread = threading.Thread(
@@ -85,7 +84,7 @@ def consume_from_rabbitmq_target[
     single boolean flag indicating whether the message should be acked or nacked.
 
     This exists so that a RabbitMQ consume loop thread can be started from a thread
-    that's running an async context.
+    that's running in a separate thread.
     """
 
     with (

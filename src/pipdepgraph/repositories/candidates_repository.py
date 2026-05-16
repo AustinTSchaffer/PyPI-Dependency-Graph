@@ -1,9 +1,8 @@
-from typing import AsyncIterable
 import itertools
 import dataclasses
 
-from psycopg_pool import AsyncConnectionPool
-from psycopg import AsyncCursor
+from psycopg_pool import ConnectionPool
+from psycopg import Cursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
@@ -11,20 +10,20 @@ from pipdepgraph.repositories import table_names
 
 
 class CandidatesRepository:
-    def __init__(self, db_pool: AsyncConnectionPool):
+    def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
-    async def insert_candidate(
+    def insert_candidate(
         self,
         candidate: models.Candidate,
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ):
         """
         Inserts a candidate record into the database. Updates the existing record
         on PK conflict.
         """
 
-        async def _insert_candidate(cursor: AsyncCursor):
+        def _insert_candidate(cursor: Cursor):
             query = f"""
             insert into {table_names.CANDIDATES}
             (requirement_id, candidate_versions, candidate_version_ids)
@@ -36,11 +35,11 @@ class CandidatesRepository:
 
             params = [candidate.requirement_id, candidate.candidate_versions, candidate.candidate_version_ids]
 
-            await cursor.execute(query, params)
+            cursor.execute(query, params)
 
         if cursor:
-            await _insert_candidate(cursor)
+            _insert_candidate(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _insert_candidate(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _insert_candidate(cursor)
+                cursor.execute("commit;")

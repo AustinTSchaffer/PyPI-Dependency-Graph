@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import queue
 
 from pipdepgraph import constants, models, pypi_api
@@ -19,10 +18,10 @@ from pipdepgraph.services import (
 logger = logging.getLogger("pipdepgraph.entrypoints.rmq_sub.distribution_processor")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (
-        common.initialize_async_connection_pool() as db_pool,
+    with (
+        common.initialize_connection_pool() as db_pool,
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
@@ -71,7 +70,7 @@ async def main():
 
             try:
                 distribution = distributions_queue.get(timeout=5.0)
-                await dps.process_distribution(distribution)
+                dps.process_distribution(distribution)
                 ack_queue.put(True)
 
             except queue.Empty as ex:
@@ -90,4 +89,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

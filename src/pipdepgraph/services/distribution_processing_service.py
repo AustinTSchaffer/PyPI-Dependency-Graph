@@ -4,7 +4,7 @@ import packaging.utils
 import packaging.requirements
 from psycopg.rows import dict_row
 
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import ConnectionPool
 from pipdepgraph import models, pypi_api, constants
 from pipdepgraph.repositories import (
     distributions_repository,
@@ -37,7 +37,7 @@ class DistributionProcessingService:
         dr: distributions_repository.DistributionsRepository,
         rr: requirements_repository.RequirementsRepository,
         pypi: pypi_api.PypiApi,
-        db_pool: AsyncConnectionPool,
+        db_pool: ConnectionPool,
         rmq_pub: rabbitmq_publish_service.RabbitMqPublishService = None,
     ):
         self.package_names_repo = pnr
@@ -75,7 +75,7 @@ class DistributionProcessingService:
         )
 
 
-    async def process_distribution(
+    def process_distribution(
         self,
         distribution: models.Distribution,
         ignore_processed_flag: bool = constants.DIST_PROCESSOR_IGNORE_PROCESSED_FLAG,
@@ -99,7 +99,7 @@ class DistributionProcessingService:
             f"{distribution.distribution_id} - Getting requirements."
         )
 
-        metadata, metadata_file_size = await self.pypi.get_distribution_metadata(
+        metadata, metadata_file_size = self.pypi.get_distribution_metadata(
             distribution
         )
 
@@ -109,12 +109,12 @@ class DistributionProcessingService:
             )
             distribution.metadata_file_size = 0
             distribution.processed = True
-            await self.distributions_repo.update_distributions(
+            self.distributions_repo.update_distributions(
                 [distribution]
             )
             return
 
-        async with self.db_pool.connection() as conn, conn.cursor(
+        with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
             requirements: list[models.Requirement] = []
@@ -123,7 +123,7 @@ class DistributionProcessingService:
                     f"{distribution.distribution_id} - Deleting existing requirements."
                 )
 
-                await self.requirements_repo.delete_requirements(
+                self.requirements_repo.delete_requirements(
                     distribution_id=distribution.distribution_id,
                     cursor=cursor,
                 )
@@ -172,7 +172,7 @@ class DistributionProcessingService:
                     f"{distribution.distribution_id} - Found {len(requirements)} requirements."
                 )
 
-                await self.requirements_repo.insert_requirements(
+                self.requirements_repo.insert_requirements(
                     requirements,
                     cursor=cursor,
                 )
@@ -186,7 +186,7 @@ class DistributionProcessingService:
                         f"{distribution.distribution_id} - Propagating {len(distinct_package_names)} package names back to Postgres."
                     )
 
-                    result = await self.package_names_repo.insert_package_names(
+                    result = self.package_names_repo.insert_package_names(
                         distinct_package_names,
                         return_inserted=(self.rabbitmq_publish_service is not None),
                         cursor=cursor,
@@ -203,16 +203,16 @@ class DistributionProcessingService:
                 )
                 distribution.metadata_file_size = metadata_file_size
                 distribution.processed = True
-                await self.distributions_repo.update_distributions(
+                self.distributions_repo.update_distributions(
                     [distribution], cursor=cursor
                 )
 
-                await cursor.execute("commit;")
+                cursor.execute("commit;")
 
             except Exception as ex:
                 logger.error(
                     f"{distribution.distribution_id} - Error while retrieving/persisting requirements info.",
                     exc_info=ex,
                 )
-                await cursor.execute("rollback;")
+                cursor.execute("rollback;")
                 raise

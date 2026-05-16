@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import time
 
 from pipdepgraph import constants, models
@@ -14,10 +13,10 @@ from pipdepgraph.repositories import (
 logger = logging.getLogger("pipdepgraph.entrypoints.cdc.publisher")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (
-        common.initialize_async_connection_pool() as db_pool,
+    with (
+        common.initialize_connection_pool() as db_pool,
     ):
         with (
             rabbitmq.initialize_rabbitmq_connection() as connection,
@@ -39,7 +38,7 @@ async def main():
                 rabbitmq.initialize_rabbitmq_connection() as connection,
                 connection.channel() as channel,
             ):
-                async for event in cdcr.iter_event_log():
+                for event in cdcr.iter_event_log():
                     logger.debug("Publishing event: %s", event)
                     rmq_pub.publish_cdc_event_log_entry(event, channel)
 
@@ -48,4 +47,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

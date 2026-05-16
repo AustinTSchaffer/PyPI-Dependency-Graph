@@ -1,8 +1,8 @@
-from typing import AsyncIterable
+from typing import Iterator
 import itertools
 
-from psycopg_pool import AsyncConnectionPool
-from psycopg import AsyncCursor
+from psycopg_pool import ConnectionPool
+from psycopg import Cursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
@@ -10,14 +10,14 @@ from pipdepgraph.repositories import table_names
 
 
 class DistributionsRepository:
-    def __init__(self, db_pool: AsyncConnectionPool):
+    def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
 
-    async def insert_distributions(
+    def insert_distributions(
         self,
         distributions: list[models.Distribution],
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
         return_inserted: bool = False,
     ) -> list[models.Distribution]:
         """
@@ -29,7 +29,7 @@ class DistributionsRepository:
         if not distributions:
             return []
 
-        async def _insert_distributions(cursor: AsyncCursor) -> list[models.Distribution]:
+        def _insert_distributions(cursor: Cursor) -> list[models.Distribution]:
             PARAMS_PER_INSERT = 8
             for distribution_batch in itertools.batched(
                 distributions,
@@ -86,28 +86,28 @@ class DistributionsRepository:
                     params[offset + 7] = dist.package_url
                     offset += PARAMS_PER_INSERT
 
-                await cursor.execute(query, params)
+                cursor.execute(query, params)
                 if return_inserted:
-                    rows = await cursor.fetchall()
+                    rows = cursor.fetchall()
                     return [models.Distribution(**row) for row in rows]
                 else:
                     return []
 
         if cursor:
-            return await _insert_distributions(cursor)
+            return _insert_distributions(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor(
+            with self.db_pool.connection() as conn, conn.cursor(
                 row_factory=dict_row
             ) as cursor:
-                result = await _insert_distributions(cursor)
-                await cursor.execute("commit;")
+                result = _insert_distributions(cursor)
+                cursor.execute("commit;")
                 return result
 
 
-    async def update_distributions(
+    def update_distributions(
         self,
         distributions: list[models.Distribution],
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ):
         """
         Updates the list of distrubutions in the database. Currently
@@ -118,7 +118,7 @@ class DistributionsRepository:
         if not distributions:
             return
 
-        async def _update_distributions(cursor: AsyncCursor):
+        def _update_distributions(cursor: Cursor):
 
             query = f"""
             update {table_names.DISTRIBUTIONS}
@@ -134,22 +134,22 @@ class DistributionsRepository:
                 for dist in distributions
             ]
 
-            await cursor.executemany(query, params_seq)
+            cursor.executemany(query, params_seq)
 
         if cursor:
-            await _update_distributions(cursor)
+            _update_distributions(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _update_distributions(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _update_distributions(cursor)
+                cursor.execute("commit;")
 
-    async def iter_distributions(
+    def iter_distributions(
         self,
         processed: bool | None = None,
         package_type: str | None = None,
         package_name: str | models.PackageName | None = None,
-    ) -> AsyncIterable[models.Distribution]:
-        async with self.db_pool.connection() as conn, conn.cursor(
+    ) -> Iterator[models.Distribution]:
+        with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row, name='iter_distributions'
         ) as cursor:
             query = f"""
@@ -205,9 +205,9 @@ class DistributionsRepository:
                 query += " dist.package_type = %s "
                 params.append(package_type)
 
-            await cursor.execute(query, params)
-            records = await cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)
+            cursor.execute(query, params)
+            records = cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
                     yield models.Distribution.from_dict(record)
-                records = await cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)
+                records = cursor.fetchmany(size=constants.DISTRIBUTIONS_REPO_ITER_BATCH_SIZE)

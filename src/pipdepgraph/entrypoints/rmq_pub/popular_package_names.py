@@ -1,5 +1,4 @@
 import logging
-import asyncio
 
 import pika
 import pika.adapters.blocking_connection
@@ -17,10 +16,10 @@ from pipdepgraph.services import (
 logger = logging.getLogger("pipdepgraph.entrypoints.rmq_pub.popular_package_names")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (
-        common.initialize_async_connection_pool() as db_pool,
+    with (
+        common.initialize_connection_pool() as db_pool,
         common.initialize_client_session() as client,
     ):
         logger.info("Initializing repositories")
@@ -37,16 +36,16 @@ async def main():
             rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
 
             logger.info("Fetching list of top packages")
-            result = await client.get(
+            result = client.get(
                 "https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json"
             )
             if not result.ok:
                 raise ValueError(result)
 
-            package_list = await result.json()
+            package_list = result.json()
             package_names = [row["project"] for row in package_list["rows"]]
 
-            await pnr.insert_package_names(package_names)
+            pnr.insert_package_names(package_names)
 
             for package_name in package_names:
                 rmq_pub.publish_package_name(package_name, channel=channel)
@@ -54,4 +53,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

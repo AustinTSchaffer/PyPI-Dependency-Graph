@@ -1,8 +1,8 @@
-from typing import AsyncIterable
+from typing import Iterator
 import itertools
 
-from psycopg_pool import AsyncConnectionPool
-from psycopg import AsyncCursor
+from psycopg_pool import ConnectionPool
+from psycopg import Cursor
 from psycopg.rows import dict_row, DictRow
 
 from pipdepgraph import models, constants
@@ -24,13 +24,13 @@ def format_pg_integer_array(array: tuple[int | None, ...]) -> str:
 
 
 class VersionsRepository:
-    def __init__(self, db_pool: AsyncConnectionPool):
+    def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
-    async def insert_versions(
+    def insert_versions(
         self,
         versions: list[models.Version],
-        cursor: AsyncCursor[DictRow] | None = None,
+        cursor: Cursor[DictRow] | None = None,
     ) -> None:
         """
         Inserts the specified version records into the database, using
@@ -42,7 +42,7 @@ class VersionsRepository:
         if not versions:
             return None
 
-        async def _insert_versions(cursor: AsyncCursor[DictRow]) -> None:
+        def _insert_versions(cursor: Cursor[DictRow]) -> None:
             PARAMS_PER_INSERT = 13
             for version_batch in itertools.batched(
                 versions, constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT
@@ -99,23 +99,23 @@ class VersionsRepository:
 
                     offset += PARAMS_PER_INSERT
 
-                await cursor.execute(query, params)
+                cursor.execute(query, params)
 
         if cursor:
-            await _insert_versions(cursor)
+            _insert_versions(cursor)
         else:
-            async with (
+            with (
                 self.db_pool.connection() as conn,
                 conn.cursor(row_factory=dict_row) as local_cursor
             ):
-                await _insert_versions(local_cursor)
-                await local_cursor.execute("commit;")
+                _insert_versions(local_cursor)
+                local_cursor.execute("commit;")
 
 
-    async def update_version(
+    def update_version(
         self,
         version: models.Version,
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ) -> None:
         """
         Updates the specified version record in the database, using
@@ -126,7 +126,7 @@ class VersionsRepository:
         if not version.version_id:
             raise ValueError("Missing version_id")
 
-        async def _update_version(cursor: AsyncCursor) -> None:
+        def _update_version(cursor: Cursor) -> None:
             query = f"""
             UPDATE {table_names.VERSIONS}
             SET
@@ -169,22 +169,22 @@ class VersionsRepository:
                 version.version_id,
             )
 
-            await cursor.execute(query, params)
+            cursor.execute(query, params)
 
         if cursor:
-            return await _update_version(cursor)
+            return _update_version(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                result = await _update_version(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                result = _update_version(cursor)
+                cursor.execute("commit;")
                 return result
 
-    async def get_versions(
+    def get_versions(
         self,
         *,
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
         package_name: str | None = None,
-        package_version: str | None = None,            
+        package_version: str | None = None,
     ) -> list[models.Version]:
         """
         Returns a list of all version records matching the specified parameters.
@@ -199,18 +199,15 @@ class VersionsRepository:
         if not package_name:
             raise ValueError("Package name not specified. Result set will be too large.")
 
-        versions = []
-        async for v in self.iter_versions(cursor=cursor, package_name=package_name, package_version=package_version):
-            versions.append(v)
-        return versions
+        return list(self.iter_versions(cursor=cursor, package_name=package_name, package_version=package_version))
 
-    async def iter_versions(
+    def iter_versions(
         self,
         *,
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
         package_name: str | None = None,
         package_version: str | None = None,
-    ) -> AsyncIterable[models.Version]:
+    ) -> Iterator[models.Version]:
         """
         Iterates over all version records matching the specified optional parameters.
         By default, iterates over all version records.
@@ -221,7 +218,7 @@ class VersionsRepository:
           not attempt to validate/parse the version string.
         """
 
-        async def _iter_versions(cursor: AsyncCursor) -> AsyncIterable[models.Version]:
+        def _iter_versions(cursor: Cursor) -> Iterator[models.Version]:
             query = f"""
             select
                 kv.version_id,
@@ -264,20 +261,18 @@ class VersionsRepository:
                 query += " kv.package_version = %s "
                 params.append(package_version)
 
-            await cursor.execute(query, params)
-            records = await cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
+            cursor.execute(query, params)
+            records = cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
                     yield models.Version.from_dict(record)
-                records = await cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
+                records = cursor.fetchmany(size=constants.VERSIONS_REPO_ITER_BATCH_SIZE)
 
         if cursor:
-            async for record in _iter_versions(cursor):
-                yield record
+            yield from _iter_versions(cursor)
         else:
-            async with (
+            with (
                 self.db_pool.connection() as conn,
                 conn.cursor(row_factory=dict_row) as local_cursor,
             ):
-                async for record in _iter_versions(local_cursor):
-                    yield record
+                yield from _iter_versions(local_cursor)

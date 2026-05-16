@@ -1,10 +1,10 @@
-from typing import AsyncIterable, List
+from typing import Iterator, List
 import datetime
 import itertools
 
 import packaging.utils
-from psycopg_pool import AsyncConnectionPool
-from psycopg import AsyncCursor
+from psycopg_pool import ConnectionPool
+from psycopg import Cursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
@@ -12,13 +12,13 @@ from pipdepgraph.repositories import table_names
 
 
 class PackageNamesRepository:
-    def __init__(self, db_pool: AsyncConnectionPool):
+    def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
-    async def insert_package_names(
+    def insert_package_names(
         self,
         package_names: list[models.PackageName] | list[str],
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
         return_inserted: bool = False,
     ) -> list[models.PackageName]:
         """
@@ -30,7 +30,7 @@ class PackageNamesRepository:
         if not package_names:
             return []
 
-        async def _insert_package_names(cursor: AsyncCursor) -> list[models.PackageName]:
+        def _insert_package_names(cursor: Cursor) -> list[models.PackageName]:
             output = []
             MAX_PARAMS_PER_INSERT = 3
 
@@ -64,30 +64,30 @@ class PackageNamesRepository:
                 if return_inserted:
                     query += " returning package_name, date_discovered, date_last_checked "
 
-                await cursor.execute(query, params)
+                cursor.execute(query, params)
 
                 if return_inserted:
-                    rows = await cursor.fetchall()
+                    rows = cursor.fetchall()
                     output.extend(map(models.PackageName.from_dict, rows))
 
             return output
 
         if cursor:
-            return await _insert_package_names(cursor)
+            return _insert_package_names(cursor)
         else:
-            async with (
+            with (
                 self.db_pool.connection() as conn,
                 conn.cursor(row_factory=dict_row) as cursor,
             ):
-                result = await _insert_package_names(cursor)
-                await cursor.execute("commit;")
+                result = _insert_package_names(cursor)
+                cursor.execute("commit;")
                 return result
 
 
-    async def update_package_names(
+    def update_package_names(
         self,
         package_names: list[models.PackageName],
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ):
         """
         Updates the list of package names in the database. This is essentially just a
@@ -97,19 +97,19 @@ class PackageNamesRepository:
         if not package_names:
             return
 
-        async def _update_package_names(cursor: AsyncCursor):
+        def _update_package_names(cursor: Cursor):
             query = f"update {table_names.PACKAGE_NAMES} set date_last_checked = %s where package_name = %s;"
             params_seq = [(pn.date_last_checked, pn.package_name) for pn in package_names]
-            await cursor.executemany(query, params_seq)
+            cursor.executemany(query, params_seq)
 
         if cursor:
-            await _update_package_names(cursor)
+            _update_package_names(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _update_package_names(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _update_package_names(cursor)
+                cursor.execute("commit;")
 
-    async def get_package_name(
+    def get_package_name(
         self, package_name: str | models.PackageName
     ) -> models.PackageName | None:
         """
@@ -132,12 +132,12 @@ class PackageNamesRepository:
         where kpn.package_name = %s
         """
 
-        async with (
+        with (
             self.db_pool.connection() as conn,
             conn.cursor(row_factory=dict_row) as cursor,
         ):
-            await cursor.execute(query, params)
-            results = await cursor.fetchall()
+            cursor.execute(query, params)
+            results = cursor.fetchall()
             return (
                 None
                 if not results
@@ -148,10 +148,10 @@ class PackageNamesRepository:
                 )
             )
 
-    async def iter_package_names(
+    def iter_package_names(
         self, date_last_checked_before: datetime.datetime | None = None
-    ) -> AsyncIterable[models.PackageName]:
-        async with (
+    ) -> Iterator[models.PackageName]:
+        with (
             self.db_pool.connection() as conn,
             conn.cursor(row_factory=dict_row, name='iter_package_names') as cursor,
         ):
@@ -171,26 +171,26 @@ class PackageNamesRepository:
                 )
                 params.append(date_last_checked_before)
 
-            await cursor.execute(query, params)
-            records = await cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
+            cursor.execute(query, params)
+            records = cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
                     yield models.PackageName.from_dict(record)
-                records = await cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
+                records = cursor.fetchmany(size=constants.NAMES_REPO_ITER_BATCH_SIZE)
 
-    async def _propagate_dependency_names(self, cursor: AsyncCursor):
+    def _propagate_dependency_names(self, cursor: Cursor):
         query = f"""
             insert into {table_names.PACKAGE_NAMES} (package_name)
             select distinct dependency_name from {table_names.REQUIREMENTS}
             on conflict do nothing;
         """
 
-        await cursor.execute(query)
+        cursor.execute(query)
 
-    async def propagate_dependency_names(self, cursor: AsyncCursor | None = None):
+    def propagate_dependency_names(self, cursor: Cursor | None = None):
         if cursor:
-            await self._propagate_dependency_names(cursor)
+            self._propagate_dependency_names(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await self._propagate_dependency_names(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                self._propagate_dependency_names(cursor)
+                cursor.execute("commit;")

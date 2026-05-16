@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import queue
 
 from pipdepgraph import constants, models
@@ -12,10 +11,10 @@ from pipdepgraph.repositories import (
 logger = logging.getLogger("pipdepgraph.entrypoints.rmq_sub.requirements_reprocessor")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (
-        common.initialize_async_connection_pool() as db_pool,
+    with (
+        common.initialize_connection_pool() as db_pool,
         db_pool.connection() as conn,
         conn.cursor() as edit_cursor,
     ):
@@ -52,8 +51,8 @@ async def main():
                     )
 
                 logger.info(f"Updating requirement: {requirement}")
-                await rr.update_requirement(requirement, cursor=edit_cursor)
-                await edit_cursor.execute("commit;")
+                rr.update_requirement(requirement, cursor=edit_cursor)
+                edit_cursor.execute("commit;")
 
                 ack_queue.put(True)
 
@@ -73,4 +72,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

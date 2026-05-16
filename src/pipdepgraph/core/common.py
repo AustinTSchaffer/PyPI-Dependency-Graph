@@ -1,8 +1,8 @@
 import logging
 import sys
 
-import aiohttp
-from psycopg_pool import AsyncConnectionPool
+import requests
+from psycopg_pool import ConnectionPool
 
 from pipdepgraph import constants
 
@@ -20,14 +20,14 @@ def initialize_logger() -> None:
     root.addHandler(handler)
 
 
-def initialize_async_connection_pool(
+def initialize_connection_pool(
     host=constants.POSTGRES_HOST,
     port=constants.POSTGRES_PORT,
     db=constants.POSTGRES_DB,
     username=constants.POSTGRES_USERNAME,
     password=constants.POSTGRES_PASSWORD,
     max_pool_size=10,
-) -> AsyncConnectionPool:
+) -> ConnectionPool:
 
     connection_string = f"""
     dbname={db}
@@ -37,12 +37,14 @@ def initialize_async_connection_pool(
     port={port}
     """
 
-    return AsyncConnectionPool(
+    return ConnectionPool(
         conninfo=connection_string,
         min_size=1,
         max_size=max_pool_size,
     )
 
 
-def initialize_client_session() -> aiohttp.ClientSession:
-    return aiohttp.ClientSession(headers={"User-Agent": "schaffer.austin.t@gmail.com"})
+def initialize_client_session() -> requests.Session:
+    session = requests.Session()
+    session.headers.update({"User-Agent": "schaffer.austin.t@gmail.com"})
+    return session

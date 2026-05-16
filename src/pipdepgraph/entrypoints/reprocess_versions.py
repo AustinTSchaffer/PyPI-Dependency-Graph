@@ -1,5 +1,4 @@
 import logging
-import asyncio
 
 from pipdepgraph.core import parsing
 from pipdepgraph.core import common
@@ -11,14 +10,14 @@ from pipdepgraph.repositories import (
 logger = logging.getLogger("pipdepgraph.entrypoints.reprocess_package_versions")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (common.initialize_async_connection_pool() as db_pool,):
+    with (common.initialize_connection_pool() as db_pool,):
         logger.info("Initializing repositories")
         vr = versions_repository.VersionsRepository(db_pool)
 
-        async with (db_pool.connection() as conn, conn.cursor() as edit_cursor,):
-            async for version in vr.iter_versions():
+        with (db_pool.connection() as conn, conn.cursor() as edit_cursor,):
+            for version in vr.iter_versions():
                 parsed_version = parsing.parse_version_string(version.package_version)
                 if parsed_version is None:
                     continue
@@ -34,8 +33,8 @@ async def main():
                 version.is_prerelease = parsed_version.is_prerelease
 
                 try:
-                    await vr.update_version(version, edit_cursor)
-                    await edit_cursor.execute("commit;")
+                    vr.update_version(version, edit_cursor)
+                    edit_cursor.execute("commit;")
                 except Exception as e:
                     logger.error(f"Error reprocessing version: {version}", exc_info=e)
 
@@ -43,4 +42,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

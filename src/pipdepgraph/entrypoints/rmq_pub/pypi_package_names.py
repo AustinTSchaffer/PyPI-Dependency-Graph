@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import re
 
 import pika
@@ -19,10 +18,10 @@ from pipdepgraph.services import (
 logger = logging.getLogger("pipdepgraph.entrypoints.rmq_pub.pypi_package_names")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (
-        common.initialize_async_connection_pool() as db_pool,
+    with (
+        common.initialize_connection_pool() as db_pool,
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
@@ -49,7 +48,7 @@ async def main():
 
             processing_prefix = False
             package_names = []
-            async for package_name in pypi.iter_all_package_names_regex():
+            for package_name in pypi.iter_all_package_names_regex():
                 if prefix_regex.match(package_name):
                     processing_prefix = True
                     package_names.append(package_name)
@@ -57,7 +56,7 @@ async def main():
                     break
 
             logger.info(f"Inserting {len(package_names)} package names into Postgres")
-            packages_inserted = await pnr.insert_package_names(
+            packages_inserted = pnr.insert_package_names(
                 package_names,
                 return_inserted=constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED,
             )
@@ -78,4 +77,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

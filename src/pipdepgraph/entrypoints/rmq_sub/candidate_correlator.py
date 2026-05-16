@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import queue
 
 from pipdepgraph import constants, models
@@ -19,9 +18,9 @@ logger = logging.getLogger(
 )
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (common.initialize_async_connection_pool() as db_pool,):
+    with (common.initialize_connection_pool() as db_pool,):
         logger.info("Initializing repositories")
         vr = versions_repository.VersionsRepository(db_pool)
         rr = requirements_repository.RequirementsRepository(db_pool)
@@ -56,7 +55,7 @@ async def main():
             try:
                 requirement = requirements_queue.get(timeout=5.0)
                 logger.debug("Correlating candidates for requirement: %s", requirement)
-                await ccs.process_requirement_record(requirement)
+                ccs.process_requirement_record(requirement)
                 ack_queue.put(True)
 
             except queue.Empty as ex:
@@ -75,4 +74,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

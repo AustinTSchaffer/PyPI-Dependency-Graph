@@ -1,7 +1,7 @@
-from typing import AsyncIterable
+from typing import Iterator
 
-from psycopg_pool import AsyncConnectionPool
-from psycopg import AsyncCursor
+from psycopg_pool import ConnectionPool
+from psycopg import Cursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
@@ -9,19 +9,19 @@ from pipdepgraph.repositories import table_names
 
 
 class CdcRepository:
-    def __init__(self, db_pool: AsyncConnectionPool):
+    def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
 
-    async def get_event_log_offset(self) -> int:
-        async with self.db_pool.connection() as conn, conn.cursor(
+    def get_event_log_offset(self) -> int:
+        with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row, name='iter_event_log'
         ) as cursor:
 
             query = f"select o.event_id event_id from {table_names.CDC_OFFSETS} o where o.table = %s;"
             params = [table_names.CDC_EVENT_LOG]
-            await cursor.execute(query, params)
-            result = await cursor.fetchall()
+            cursor.execute(query, params)
+            result = cursor.fetchall()
 
             if len(result) > 1:
                 raise ValueError(f"{table_names.CDC_OFFSETS} has more than one entry for table {table_names.CDC_EVENT_LOG}")
@@ -30,20 +30,20 @@ class CdcRepository:
                 event_id_offset = result[0]["event_id"]
 
             else:
-                await self.upsert_offset(table_names.CDC_EVENT_LOG, -1)
+                self.upsert_offset(table_names.CDC_EVENT_LOG, -1)
                 event_id_offset = -1
 
             return event_id_offset
 
 
-    async def iter_event_log(
+    def iter_event_log(
         self,
         auto_upsert_offset: bool = True,
-    ) -> AsyncIterable[models.EventLogEntry]:
-        async with self.db_pool.connection() as conn, conn.cursor(
+    ) -> Iterator[models.EventLogEntry]:
+        with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row, name='iter_event_log'
         ) as cursor:
-            event_id_offset = await self.get_event_log_offset()
+            event_id_offset = self.get_event_log_offset()
 
             query = f"""
             select
@@ -62,8 +62,8 @@ class CdcRepository:
 
             params = [event_id_offset, constants.CDC_EVENT_LOG_REPO_ITER_BATCH_SIZE]
 
-            await cursor.execute(query, params)
-            records = await cursor.fetchall()
+            cursor.execute(query, params)
+            records = cursor.fetchall()
 
             max_event_id_seen = None
             while records:
@@ -78,20 +78,20 @@ class CdcRepository:
                     yield event
 
                 if auto_upsert_offset:
-                    await self.upsert_offset(table_names.CDC_EVENT_LOG, max_event_id_seen)
+                    self.upsert_offset(table_names.CDC_EVENT_LOG, max_event_id_seen)
 
                 params[0] = max_event_id_seen
-                await cursor.execute(query, params)
-                records = await cursor.fetchall()
+                cursor.execute(query, params)
+                records = cursor.fetchall()
 
 
-    async def upsert_offset(
+    def upsert_offset(
         self,
         table_name: str,
         event_id_offset: int,
-        cursor: AsyncCursor = None,
+        cursor: Cursor = None,
     ):
-        async def _upsert_offset(cursor: AsyncCursor):
+        def _upsert_offset(cursor: Cursor):
 
             query = f"""
             insert into {table_names.CDC_OFFSETS}
@@ -104,11 +104,11 @@ class CdcRepository:
             """
 
             params = [table_name, event_id_offset]
-            await cursor.execute(query, params)
+            cursor.execute(query, params)
 
         if cursor:
-            await _upsert_offset(cursor)
+            _upsert_offset(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _upsert_offset(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _upsert_offset(cursor)
+                cursor.execute("commit;")

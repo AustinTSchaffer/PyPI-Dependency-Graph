@@ -3,7 +3,7 @@ import logging
 
 import packaging
 import packaging.version
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, pypi_api, constants
@@ -42,7 +42,7 @@ class PackageNameProcessingService:
     def __init__(
         self,
         *,
-        db_pool: AsyncConnectionPool,
+        db_pool: ConnectionPool,
         pnr: package_names_repository.PackageNamesRepository,
         vr: versions_repository.VersionsRepository,
         dr: distributions_repository.DistributionsRepository,
@@ -57,7 +57,7 @@ class PackageNameProcessingService:
         self.rabbitmq_publish_service = rmq_pub
 
 
-    async def process_package_name(
+    def process_package_name(
         self,
         package_name: str | models.PackageName,
         ignore_date_last_checked: bool = False,
@@ -71,15 +71,15 @@ class PackageNameProcessingService:
 
         logger.info(f"Processing package name: {package_name}")
 
-        _package_name = await self.package_names_repo.get_package_name(
+        _package_name = self.package_names_repo.get_package_name(
             package_name
         )
 
         if not _package_name:
-            await self.package_names_repo.insert_package_names(
+            self.package_names_repo.insert_package_names(
                 [package_name]
             )
-            _package_name = await self.package_names_repo.get_package_name(
+            _package_name = self.package_names_repo.get_package_name(
                 package_name
             )
 
@@ -106,14 +106,14 @@ class PackageNameProcessingService:
 
         logger.info(f"{package_name} - Getting version/distribution information.")
 
-        package_vers_dists_result = await self.pypi.get_package_distributions_legacy(
+        package_vers_dists_result = self.pypi.get_package_distributions_legacy(
             package_name
         )
 
         if not package_vers_dists_result:
             logger.debug(f"{package_name} - Marking package checked.")
             package_name.date_last_checked = now
-            await self.package_names_repo.update_package_names(
+            self.package_names_repo.update_package_names(
                 [package_name]
             )
             return
@@ -146,19 +146,19 @@ class PackageNameProcessingService:
             version.is_postrelease = parsed_version.is_postrelease
             version.is_devrelease = parsed_version.is_devrelease
 
-        async with self.db_pool.connection() as conn, conn.cursor(
+        with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
             try:
                 logger.debug(f"{package_name} - Saving version information.")
-                await self.versions_repo.insert_versions(
+                self.versions_repo.insert_versions(
                     versions, cursor=cursor
                 )
 
                 logger.debug(f"{package_name} - Building version_id map.")
                 version_id_map = {
                     version.package_version: version.version_id
-                    async for version in self.versions_repo.iter_versions(
+                    for version in self.versions_repo.iter_versions(
                         package_name=package_name.package_name,
                         cursor=cursor,
                     )
@@ -183,12 +183,10 @@ class PackageNameProcessingService:
                 ]
 
                 logger.debug(f"{package_name} - Saving distribution information.")
-                result = (
-                    await self.distributions_repo.insert_distributions(
-                        distributions,
-                        return_inserted=(self.rabbitmq_publish_service is not None),
-                        cursor=cursor,
-                    )
+                result = self.distributions_repo.insert_distributions(
+                    distributions,
+                    return_inserted=(self.rabbitmq_publish_service is not None),
+                    cursor=cursor,
                 )
 
                 if self.rabbitmq_publish_service is not None and result:
@@ -199,15 +197,15 @@ class PackageNameProcessingService:
 
                 logger.debug(f"{package_name} - Marking package checked.")
                 package_name.date_last_checked = now
-                await self.package_names_repo.update_package_names(
+                self.package_names_repo.update_package_names(
                     [package_name], cursor=cursor
                 )
 
-                await cursor.execute("commit;")
+                cursor.execute("commit;")
 
             except Exception as ex:
                 logger.error(
                     "Error while processing package %s", package_name, exc_info=ex
                 )
-                await cursor.execute("rollback;")
+                cursor.execute("rollback;")
                 raise

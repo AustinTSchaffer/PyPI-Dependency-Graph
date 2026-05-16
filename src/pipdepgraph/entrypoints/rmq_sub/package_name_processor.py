@@ -1,12 +1,7 @@
 import logging
-import asyncio
-import json
 import queue
-import threading
-import uuid
 
 import pika
-import pika.adapters.asyncio_connection
 import pika.adapters.blocking_connection
 import pika.channel
 import pika.delivery_mode
@@ -29,10 +24,10 @@ from pipdepgraph.services import (
 logger = logging.getLogger("pipdepgraph.entrypoints.rmq_sub.package_name_processor")
 
 
-async def main():
+def main():
     logger.info("Initializing DB pool")
-    async with (
-        common.initialize_async_connection_pool() as db_pool,
+    with (
+        common.initialize_connection_pool() as db_pool,
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
@@ -81,7 +76,7 @@ async def main():
 
             try:
                 package_name = package_names_queue.get(timeout=5.0)
-                await pnps.process_package_name(
+                pnps.process_package_name(
                     package_name, ignore_date_last_checked=True
                 )
                 ack_queue.put(True)
@@ -102,4 +97,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

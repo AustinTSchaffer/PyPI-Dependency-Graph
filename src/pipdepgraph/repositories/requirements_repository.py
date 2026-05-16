@@ -1,9 +1,9 @@
-from typing import AsyncIterable
+from typing import Iterator
 import itertools
 import dataclasses
 
-from psycopg_pool import AsyncConnectionPool
-from psycopg import AsyncCursor
+from psycopg_pool import ConnectionPool
+from psycopg import Cursor
 from psycopg.rows import dict_row
 
 from pipdepgraph import models, constants
@@ -11,13 +11,13 @@ from pipdepgraph.repositories import table_names
 
 
 class RequirementsRepository:
-    def __init__(self, db_pool: AsyncConnectionPool):
+    def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
-    async def insert_requirements(
+    def insert_requirements(
         self,
         requirements: list[models.Requirement],
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ):
         """
         Inserts a list of requirement records into the database, batching them
@@ -27,7 +27,7 @@ class RequirementsRepository:
         if not requirements:
             return
 
-        async def _insert_requirements(cursor: AsyncCursor):
+        def _insert_requirements(cursor: Cursor):
             PARAMS_PER_INSERT = 8
             for requirement_batch in itertools.batched(
                 requirements,
@@ -67,21 +67,21 @@ class RequirementsRepository:
                     params[offset + 7] = req.version_constraint
                     offset += PARAMS_PER_INSERT
 
-                await cursor.execute(query, params)
+                cursor.execute(query, params)
 
         if cursor:
-            await _insert_requirements(cursor)
+            _insert_requirements(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _insert_requirements(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _insert_requirements(cursor)
+                cursor.execute("commit;")
 
-    async def update_requirement(
+    def update_requirement(
         self,
         requirement: models.Requirement,
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ) -> None:
-        async def _update_requirement(cursor: AsyncCursor):
+        def _update_requirement(cursor: Cursor):
             if requirement.requirement_id:
                 sql = f"""
                 update {table_names.REQUIREMENTS} set
@@ -95,7 +95,7 @@ class RequirementsRepository:
                     requirement.requirement_id,
                 )
 
-                await cursor.execute(sql, params)
+                cursor.execute(sql, params)
             else:
                 sql = f"""
                 update {table_names.REQUIREMENTS} set
@@ -120,21 +120,21 @@ class RequirementsRepository:
                     requirement.version_constraint,
                 )
 
-                await cursor.execute(sql, params)
+                cursor.execute(sql, params)
 
         if cursor:
-            await _update_requirement(cursor)
+            _update_requirement(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _update_requirement(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _update_requirement(cursor)
+                cursor.execute("commit;")
 
 
-    async def delete_requirements(
+    def delete_requirements(
         self,
         *,
         distribution_id: str,
-        cursor: AsyncCursor | None = None,
+        cursor: Cursor | None = None,
     ):
         """
         Deletes requirements that have the specified `distribution_id`.
@@ -143,22 +143,22 @@ class RequirementsRepository:
         if not distribution_id:
             return
 
-        async def _delete_requirements(cursor: AsyncCursor):
+        def _delete_requirements(cursor: Cursor):
             query = f"""
             delete from {table_names.REQUIREMENTS}
             where distribution_id = %s;
             """
-            await cursor.execute(query, [distribution_id])
+            cursor.execute(query, [distribution_id])
 
         if cursor:
-            await _delete_requirements(cursor)
+            _delete_requirements(cursor)
         else:
-            async with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                await _delete_requirements(cursor)
-                await cursor.execute("commit;")
+            with self.db_pool.connection() as conn, conn.cursor() as cursor:
+                _delete_requirements(cursor)
+                cursor.execute("commit;")
 
 
-    async def iter_requirements(
+    def iter_requirements(
         self,
         package_name: str | None = None,
         package_version: str | None = None,
@@ -167,13 +167,13 @@ class RequirementsRepository:
         dist_id_hash_mod_filter: tuple[str, int, int] | None = None,
         dependency_name: str | None = None,
         dependency_extras_arr_is_none: bool = None,
-    ) -> AsyncIterable[models.Requirement]:
+    ) -> Iterator[models.Requirement]:
         """
         Iterates over a list of requirements records, returning each
         requirement record.
         """
 
-        async with (
+        with (
             self.db_pool.connection() as conn,
             conn.cursor(row_factory=dict_row, name='iter_requirements') as cursor,
         ):
@@ -266,9 +266,9 @@ class RequirementsRepository:
                 query += " req.dependency_name = %s "
                 params.append(dependency_name)
 
-            await cursor.execute(query, params)
-            records = await cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)
+            cursor.execute(query, params)
+            records = cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)
             while records:
                 for record in records:
                     yield models.Requirement.from_dict(record)
-                records = await cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)
+                records = cursor.fetchmany(size=constants.REQUIREMENTS_REPO_ITER_BATCH_SIZE)

@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import queue
 
 import pika.adapters.blocking_connection
@@ -12,7 +11,7 @@ from pipdepgraph.core import common
 logger = logging.getLogger("pipdepgraph.entrypoints.cdc.requirements_subscriber")
 
 
-async def main():
+def main():
     logger.info("Initializing RabbitMQ Connection")
     with (
         rabbitmq.initialize_rabbitmq_connection() as rabbitmq_connection,
@@ -61,4 +60,4 @@ async def main():
 
 if __name__ == "__main__":
     common.initialize_logger()
-    asyncio.run(main())
+    main()

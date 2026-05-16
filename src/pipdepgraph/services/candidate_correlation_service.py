@@ -4,7 +4,7 @@ import logging
 import packaging
 import packaging.specifiers
 import packaging.version
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 
 from pipdepgraph import models
@@ -25,7 +25,7 @@ class CandidateCorrelationService:
     def __init__(
         self,
         *,
-        db_pool: AsyncConnectionPool,
+        db_pool: ConnectionPool,
         vr: versions_repository.VersionsRepository,
         rr: requirements_repository.RequirementsRepository,
         cr: candidates_repository.CandidatesRepository,
@@ -36,7 +36,7 @@ class CandidateCorrelationService:
         self.candidates_repo = cr
 
 
-    async def process_version_record(
+    def process_version_record(
         self,
         version: models.Version,
     ):
@@ -50,15 +50,15 @@ class CandidateCorrelationService:
         RabbitMQ.
         """
 
-        async with self.db_pool.connection() as conn, conn.cursor(
+        with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row
         ) as cursor:
             logger.info(f"Searching for requirements that depend on: {version.package_name}=={version.package_version}")
-            async for reverse_candidate in self.requirements_repo.iter_requirements(dependency_name=version.package_name):
+            for reverse_candidate in self.requirements_repo.iter_requirements(dependency_name=version.package_name):
                 ...
 
 
-    async def process_requirement_record(
+    def process_requirement_record(
         self,
         requirement: models.Requirement,
     ):
@@ -81,7 +81,7 @@ class CandidateCorrelationService:
             logger.error("Error while parsing specifier set: %s", requirement.version_constraint, exc_info=True)
             return
 
-        versions = await self.versions_repo.get_versions(package_name=requirement.dependency_name)
+        versions = self.versions_repo.get_versions(package_name=requirement.dependency_name)
         package_version_to_version_model_map = {
             version.package_version: version
             for version in versions
@@ -105,7 +105,7 @@ class CandidateCorrelationService:
         candidate_versions_text = [parsed_version_to_package_version_map[v] for v in sorted_parsed_candidate_versions]
         candidate_version_ids = [package_version_to_version_model_map[v].version_id for v in candidate_versions_text]
 
-        await self.candidates_repo.insert_candidate(models.Candidate(
+        self.candidates_repo.insert_candidate(models.Candidate(
             requirement_id=requirement.requirement_id,
             candidate_versions=candidate_versions_text,
             candidate_version_ids=candidate_version_ids,
