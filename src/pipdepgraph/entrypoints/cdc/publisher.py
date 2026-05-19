@@ -27,9 +27,6 @@ def main():
         logger.info("Initializing repositories")
         cdcr = cdc_repository.CdcRepository(db_pool)
 
-        logger.info("Initializing services")
-        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(rabbitmq.initialize_rabbitmq_connection)
-
         logger.info("Running.")
         while True:
             logger.info("Polling event log for new events.")
@@ -38,6 +35,7 @@ def main():
                 rabbitmq.initialize_rabbitmq_connection() as connection,
                 connection.channel() as channel,
             ):
+                rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
                 for event in cdcr.iter_event_log():
                     logger.debug("Publishing event: %s", event)
                     rmq_pub.publish_cdc_event_log_entry(event, channel)

@@ -82,12 +82,13 @@ class CandidateCorrelationService:
             return
 
         versions = self.versions_repo.get_versions(package_name=requirement.dependency_name)
+
         package_version_to_version_model_map = {
             version.package_version: version
             for version in versions
         }
 
-        parsed_version_to_package_version_map = {}
+        parsed_version_to_package_version_map: dict[packaging.version.Version, models.Version] = {}
         for version in versions:
             try:
                 parsed_version = packaging.version.Version(version.package_version)
@@ -97,16 +98,17 @@ class CandidateCorrelationService:
                 pass
 
         try:
-            sorted_parsed_candidate_versions = sorted(req_specifier_set.filter(parsed_version_to_package_version_map.keys()), reverse=True)
+            parsed_candidate_versions = sorted(req_specifier_set.filter(parsed_version_to_package_version_map.keys()), reverse=True)
         except Exception:
             logger.error("Error while filter-sorting requirements.", exc_info=True)
             return
 
-        candidate_versions_text = [parsed_version_to_package_version_map[v] for v in sorted_parsed_candidate_versions]
-        candidate_version_ids = [package_version_to_version_model_map[v].version_id for v in candidate_versions_text]
+        candidates = [
+            models.Candidate(
+                requirement_id=requirement.requirement_id,
+                version_id=package_version_to_version_model_map[v].version_id,
+            )
+            for v in parsed_candidate_versions
+        ]
 
-        self.candidates_repo.insert_candidate(models.Candidate(
-            requirement_id=requirement.requirement_id,
-            candidate_versions=candidate_versions_text,
-            candidate_version_ids=candidate_version_ids,
-        ))
+        self.candidates_repo.insert_candidates(candidates)

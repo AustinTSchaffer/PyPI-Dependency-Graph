@@ -6,7 +6,7 @@ import pika.adapters.blocking_connection
 from pipdepgraph.core import common, rabbitmq
 
 from pipdepgraph.repositories import (
-    package_names_repository,
+    packages_repository,
 )
 
 from pipdepgraph.services import (
@@ -23,7 +23,7 @@ def main():
         common.initialize_client_session() as client,
     ):
         logger.info("Initializing repositories")
-        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = packages_repository.PackagesRepository(db_pool)
 
         logger.info("Initializing RabbitMQ session")
         with (
@@ -33,7 +33,7 @@ def main():
             channel: pika.adapters.blocking_connection.BlockingChannel
             rabbitmq.declare_rabbitmq_infrastructure(channel)
 
-            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
+            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
             logger.info("Fetching list of top packages")
             result = client.get(
@@ -45,10 +45,10 @@ def main():
             package_list = result.json()
             package_names = [row["project"] for row in package_list["rows"]]
 
-            pnr.insert_package_names(package_names)
+            pnr.insert_packages(package_names)
 
             for package_name in package_names:
-                rmq_pub.publish_package_name(package_name, channel=channel)
+                rmq_pub.publish_package_name(package_name)
 
 
 if __name__ == "__main__":

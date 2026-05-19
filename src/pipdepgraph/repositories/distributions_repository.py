@@ -148,7 +148,7 @@ class DistributionsRepository:
         self,
         processed: bool | None = None,
         package_type: str | None = None,
-        package_name: str | models.PackageName | None = None,
+        package: str | models.Package | None = None,
     ) -> Iterator[models.Distribution]:
         with self.db_pool.connection() as conn, conn.cursor(
             row_factory=dict_row, name='iter_distributions'
@@ -167,18 +167,18 @@ class DistributionsRepository:
                 dist.metadata_file_size,
                 dist.processed
             from {table_names.DISTRIBUTIONS} dist
-            {"" if package_name is None else f" left join {table_names.VERSIONS} version on version.version_id = dist.version_id "}
-            {"" if package_name is None else f" left join {table_names.PACKAGE_NAMES} name on name.package_name = version.package_name "}
+            {"" if package is None else f" left join {table_names.VERSIONS} version on version.version_id = dist.version_id "}
+            {"" if package is None else f" left join {table_names.PACKAGES} p on p.name = version.package_name "}
             """
 
             has_where = False
             params = []
 
-            if package_name is not None:
+            if package is not None:
                 _package_name = (
-                    package_name
-                    if isinstance(package_name, str)
-                    else package_name.package_name
+                    package
+                    if isinstance(package, str)
+                    else package.name
                 )
                 if not has_where:
                     query += " where "

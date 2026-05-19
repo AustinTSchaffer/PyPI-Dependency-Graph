@@ -12,33 +12,45 @@ class CandidatesRepository:
     def __init__(self, db_pool: ConnectionPool):
         self.db_pool = db_pool
 
-    def insert_candidate(
+    def insert_candidates(
         self,
-        candidate: models.Candidate,
+        candidates: list[models.Candidate],
         cursor: Cursor | None = None,
     ):
         """
-        Inserts a candidate record into the database. Updates the existing record
-        on PK conflict.
+        Inserts a list of candidate records into the database in batches.
+        Skips records that conflict on the composite primary key.
         """
 
-        def _insert_candidate(cursor: Cursor):
-            query = f"""
-            insert into {table_names.CANDIDATES}
-            (requirement_id, candidate_versions, candidate_version_ids)
-            values (%s, %s, %s)
-            on conflict (requirement_id) do update set
-                candidate_versions = EXCLUDED.candidate_versions,
-                candidate_version_ids = EXCLUDED.candidate_version_ids
-            ;"""
+        if not candidates:
+            return
 
-            params = [candidate.requirement_id, candidate.candidate_versions, candidate.candidate_version_ids]
+        def _insert_candidates(cursor: Cursor):
+            PARAMS_PER_INSERT = 2
+            for batch in itertools.batched(
+                candidates,
+                constants.POSTGRES_MAX_QUERY_PARAMS // PARAMS_PER_INSERT,
+            ):
+                query = f"""
+                insert into {table_names.CANDIDATES}
+                (requirement_id, version_id)
+                values
+                """
+                query += ",".join("(%s, %s)" for _ in range(len(batch)))
+                query += " on conflict do nothing"
 
-            cursor.execute(query, params)
+                params = [None] * PARAMS_PER_INSERT * len(batch)
+                offset = 0
+                for candidate in batch:
+                    params[offset + 0] = candidate.requirement_id
+                    params[offset + 1] = candidate.version_id
+                    offset += PARAMS_PER_INSERT
+
+                cursor.execute(query, params)
 
         if cursor:
-            _insert_candidate(cursor)
+            _insert_candidates(cursor)
         else:
             with self.db_pool.connection() as conn, conn.cursor() as cursor:
-                _insert_candidate(cursor)
+                _insert_candidates(cursor)
                 cursor.execute("commit;")

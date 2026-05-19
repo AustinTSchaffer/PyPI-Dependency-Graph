@@ -8,7 +8,7 @@ from psycopg_pool import ConnectionPool
 from pipdepgraph import models, pypi_api, constants
 from pipdepgraph.repositories import (
     distributions_repository,
-    package_names_repository,
+    packages_repository,
     requirements_repository,
 )
 
@@ -33,7 +33,7 @@ class DistributionProcessingService:
     def __init__(
         self,
         *,
-        pnr: package_names_repository.PackageNamesRepository,
+        pnr: packages_repository.PackagesRepository,
         dr: distributions_repository.DistributionsRepository,
         rr: requirements_repository.RequirementsRepository,
         pypi: pypi_api.PypiApi,
@@ -187,7 +187,7 @@ class DistributionProcessingService:
                         f"{distribution.distribution_id} - Propagating {len(distinct_package_names)} package names back to Postgres."
                     )
 
-                    result = self.package_names_repo.insert_package_names(
+                    result = self.package_names_repo.insert_packages(
                         distinct_package_names,
                         return_inserted=(self.rabbitmq_publish_service is not None),
                         cursor=cursor,

@@ -12,7 +12,7 @@ from pipdepgraph.core import common, rabbitmq
 
 from pipdepgraph.repositories import (
     distributions_repository,
-    package_names_repository,
+    packages_repository,
     requirements_repository,
 )
 
@@ -32,7 +32,7 @@ def main():
     logger.info("Initializing DB pool")
     with (common.initialize_connection_pool() as db_pool,):
         logger.info("Initializing repositories")
-        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = packages_repository.PackagesRepository(db_pool)
         dr = distributions_repository.DistributionsRepository(db_pool)
         rr = requirements_repository.RequirementsRepository(db_pool)
 
@@ -44,7 +44,7 @@ def main():
             channel: pika.adapters.blocking_connection.BlockingChannel
             rabbitmq.declare_rabbitmq_infrastructure(channel)
 
-            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
+            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
             if constants.UPL_LOAD_DISTRIBUTIONS:
                 package_type = (
@@ -67,19 +67,19 @@ def main():
                         "Loading unprocessed version distribution: %s",
                         vd.distribution_id,
                     )
-                    rmq_pub.publish_distribution(vd, channel=channel)
+                    rmq_pub.publish_distribution(vd)
 
             if constants.UPL_LOAD_PACKAGE_NAMES:
                 logger.info("Loading all package names into RabbitMQ")
-                for kpn in pnr.iter_package_names():
-                    logger.debug("Loading Package Name: %s", kpn.package_name)
-                    rmq_pub.publish_package_name(kpn, channel=channel)
+                for kpn in pnr.iter_packages():
+                    logger.debug("Loading Package Name: %s", kpn.name)
+                    rmq_pub.publish_package_name(kpn)
 
             if constants.UPL_LOAD_REQUIREMENTS_FOR_CANDIDATE_CORRELATION:
                 logger.info("Loading all requirements records into RabbitMQ")
                 for req in rr.iter_requirements():
                     logger.debug("Loading Requirement: %s", req)
-                    rmq_pub.publish_requirement_for_candidate_correlation(req, channel=channel)
+                    rmq_pub.publish_requirement_for_candidate_correlation(req)
 
 if __name__ == "__main__":
     common.initialize_logger()

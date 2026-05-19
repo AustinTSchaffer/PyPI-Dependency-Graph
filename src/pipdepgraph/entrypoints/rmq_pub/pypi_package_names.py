@@ -8,7 +8,7 @@ from pipdepgraph import pypi_api, constants
 from pipdepgraph.core import common, rabbitmq
 
 from pipdepgraph.repositories import (
-    package_names_repository,
+    packages_repository,
 )
 
 from pipdepgraph.services import (
@@ -25,7 +25,7 @@ def main():
         common.initialize_client_session() as session,
     ):
         logger.info("Initializing repositories")
-        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = packages_repository.PackagesRepository(db_pool)
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing RabbitMQ session")
@@ -36,7 +36,7 @@ def main():
             channel: pika.adapters.blocking_connection.BlockingChannel
             rabbitmq.declare_rabbitmq_infrastructure(channel)
 
-            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(None)
+            rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
             prefix_regex = constants.POPULAR_PACKAGE_LOADER_PREFIX_REGEX
 
@@ -56,7 +56,7 @@ def main():
                     break
 
             logger.info(f"Inserting {len(package_names)} package names into Postgres")
-            packages_inserted = pnr.insert_package_names(
+            packages_inserted = pnr.insert_packages(
                 package_names,
                 return_inserted=constants.POPULAR_PACKAGE_LOADER_COUNT_INSERTED,
             )
@@ -68,11 +68,11 @@ def main():
                         f"Publishing {len(packages_inserted)} new packages to RabbitMQ"
                     )
                     for new_package in packages_inserted:
-                        rmq_pub.publish_package_name(new_package, channel=channel)
+                        rmq_pub.publish_package_name(new_package)
 
             logger.info(f"Publishing {len(package_names)} package names to RabbitMQ")
             for package_name in package_names:
-                rmq_pub.publish_package_name(package_name, channel=channel)
+                rmq_pub.publish_package_name(package_name)
 
 
 if __name__ == "__main__":

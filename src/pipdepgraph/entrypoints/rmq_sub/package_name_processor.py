@@ -7,12 +7,12 @@ from pipdepgraph.core import common, rabbitmq
 
 from pipdepgraph.repositories import (
     distributions_repository,
-    package_names_repository,
+    packages_repository,
     versions_repository,
 )
 
 from pipdepgraph.services import (
-    package_name_processing_service,
+    package_processing_service,
     rabbitmq_publish_service,
 )
 
@@ -24,9 +24,11 @@ def main():
     with (
         common.initialize_connection_pool() as db_pool,
         common.initialize_client_session() as session,
+        rabbitmq.initialize_rabbitmq_connection() as rabbitmq_connection,
+        rabbitmq_connection.channel() as channel,        
     ):
         logger.info("Initializing repositories")
-        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = packages_repository.PackagesRepository(db_pool)
         vr = versions_repository.VersionsRepository(db_pool)
         dr = distributions_repository.DistributionsRepository(db_pool)
 
@@ -34,14 +36,12 @@ def main():
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
-        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(
-            rabbitmq.initialize_rabbitmq_connection
-        )
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
         logger.info(
             "Initializing package_name_processing_service.PackageNameProcessingService"
         )
-        pnps = package_name_processing_service.PackageNameProcessingService(
+        pnps = package_processing_service.PackageProcessingService(
             pnr=pnr,
             vr=vr,
             dr=dr,
@@ -54,7 +54,7 @@ def main():
         rabbitmq.consume_from_rabbitmq(
             rabbitmq_queue_name=constants.RABBITMQ_NAMES_QNAME,
             prefetch_count=constants.RABBITMQ_NAMES_SUB_PREFETCH,
-            model_factory=lambda b: msgspec.json.decode(b, type=models.PackageName | str),
+            model_factory=lambda b: msgspec.json.decode(b, type=models.Package | str),
             on_message=lambda model: pnps.process_package_name(
                 model, ignore_date_last_checked=True
             ),

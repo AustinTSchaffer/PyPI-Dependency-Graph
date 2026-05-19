@@ -10,7 +10,7 @@ from pipdepgraph import models, pypi_api, constants
 from pipdepgraph.core import parsing
 from pipdepgraph.repositories import (
     distributions_repository,
-    package_names_repository,
+    packages_repository,
     versions_repository,
 )
 
@@ -27,12 +27,12 @@ has been processed recently.
 logger = logging.getLogger(__name__)
 
 
-class PackageNameProcessingService:
+class PackageProcessingService:
     """
-    The package name processing service processes a single package name
+    The package processing service processes a single package
     at a time, performing the following actions in sequence.
 
-    - Inserts the package nme into `package_names` to ensure that it exists in postgres.
+    - Inserts the package nme into `packages` to ensure that it exists in postgres.
     - Fetches the package's info from the PyPI API.
     - Inserts the package's version info into `versions`.
     - Inserts the package's distribution info into `distributions`.
@@ -43,7 +43,7 @@ class PackageNameProcessingService:
         self,
         *,
         db_pool: ConnectionPool,
-        pnr: package_names_repository.PackageNamesRepository,
+        pnr: packages_repository.PackagesRepository,
         vr: versions_repository.VersionsRepository,
         dr: distributions_repository.DistributionsRepository,
         pypi: pypi_api.PypiApi,
@@ -59,7 +59,7 @@ class PackageNameProcessingService:
 
     def process_package_name(
         self,
-        package_name: str | models.PackageName,
+        package_name: str | models.Package,
         ignore_date_last_checked: bool = False,
     ):
         """
@@ -71,15 +71,15 @@ class PackageNameProcessingService:
 
         logger.info(f"Processing package name: {package_name}")
 
-        _package_name = self.package_names_repo.get_package_name(
+        _package_name = self.package_names_repo.get_package(
             package_name
         )
 
         if not _package_name:
-            self.package_names_repo.insert_package_names(
+            self.package_names_repo.insert_packages(
                 [package_name]
             )
-            _package_name = self.package_names_repo.get_package_name(
+            _package_name = self.package_names_repo.get_package(
                 package_name
             )
 
@@ -113,7 +113,7 @@ class PackageNameProcessingService:
         if not package_vers_dists_result:
             logger.debug(f"{package_name} - Marking package checked.")
             package_name.date_last_checked = now
-            self.package_names_repo.update_package_names(
+            self.package_names_repo.update_packages(
                 [package_name]
             )
             return
@@ -121,7 +121,7 @@ class PackageNameProcessingService:
         versions: list[models.Version] = [
             models.Version(
                 version_id=None,
-                package_name=package_name.package_name,
+                package_name=package_name.name,
                 package_version=version_string,
                 date_discovered=None,
             )
@@ -132,7 +132,7 @@ class PackageNameProcessingService:
             parsed_version = parsing.parse_version_string(version.package_version)
             if parsed_version is None:
                 logger.warning(
-                    f"{package_name.package_name} - Error parsing version {version.package_version}.",
+                    f"{package_name.name} - Error parsing version {version.package_version}.",
                 )
                 continue
 
@@ -159,7 +159,7 @@ class PackageNameProcessingService:
                 version_id_map = {
                     version.package_version: version.version_id
                     for version in self.versions_repo.iter_versions(
-                        package_name=package_name.package_name,
+                        package_name=package_name.name,
                         cursor=cursor,
                     )
                 }
@@ -197,7 +197,7 @@ class PackageNameProcessingService:
 
                 logger.debug(f"{package_name} - Marking package checked.")
                 package_name.date_last_checked = now
-                self.package_names_repo.update_package_names(
+                self.package_names_repo.update_packages(
                     [package_name], cursor=cursor
                 )
 

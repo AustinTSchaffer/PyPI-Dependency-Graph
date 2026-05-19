@@ -1,4 +1,3 @@
-import threading
 from collections.abc import Callable
 
 import msgspec.json
@@ -11,97 +10,49 @@ from pipdepgraph import models, constants
 
 
 class RabbitMqPublishService:
-    def __init__(self, rmq_conn_factory: Callable[[], pika.BlockingConnection] | None):
-        self.rmq_conn_factory = rmq_conn_factory
+    def __init__(self, channel: pika.channel.Channel):
+        self.channel = channel
 
-    def publish_package_name(
-        self, kpn: models.PackageName | str, channel: pika.channel.Channel = None
-    ):
-        package_name = kpn.package_name if isinstance(kpn, models.PackageName) else kpn
+    def publish_package_name(self, kpn: models.Package | str):
+        package_name = kpn.name if isinstance(kpn, models.Package) else kpn
+        self.channel.basic_publish(
+            exchange=constants.RABBITMQ_EXCHANGE,
+            routing_key=f"{constants.RABBITMQ_NAMES_RK_PREFIX}{package_name}",
+            body=msgspec.json.encode(kpn),
+        )
 
-        def _publish(channel: pika.channel.Channel):
-            channel.basic_publish(
-                exchange=constants.RABBITMQ_EXCHANGE,
-                routing_key=f"{constants.RABBITMQ_NAMES_RK_PREFIX}{package_name}",
-                body=msgspec.json.encode(kpn),
-            )
+    def publish_package_names(self, kpns: list[models.Package]):
+        for kpn in kpns:
+            self.publish_package_name(kpn)
 
-        if channel:
-            _publish(channel)
-            return
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            _publish(channel)
-
-    def publish_package_names(self, kpns: list[models.PackageName]):
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            for kpn in kpns:
-                self.publish_package_name(kpn, channel=channel)
-
-    def publish_distribution(
-        self, vd: models.Distribution, channel: pika.channel.Channel = None
-    ):
-        def _publish(channel: pika.channel.Channel):
-            channel.basic_publish(
-                exchange=constants.RABBITMQ_EXCHANGE,
-                routing_key=f"{constants.RABBITMQ_DISTS_RK_PREFIX}{vd.distribution_id}",
-                body=msgspec.json.encode(vd),
-            )
-
-        if channel:
-            _publish(channel)
-            return
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            _publish(channel)
+    def publish_distribution(self, vd: models.Distribution):
+        self.channel.basic_publish(
+            exchange=constants.RABBITMQ_EXCHANGE,
+            routing_key=f"{constants.RABBITMQ_DISTS_RK_PREFIX}{vd.distribution_id}",
+            body=msgspec.json.encode(vd),
+        )
 
     def publish_distributions(self, vds: list[models.Distribution]):
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            for vd in vds:
-                self.publish_distribution(vd, channel=channel)
+        for vd in vds:
+            self.publish_distribution(vd)
 
-    def publish_requirement_for_candidate_correlation(
-        self, req: models.Requirement, channel: pika.channel.Channel = None
-    ):
-        def _publish(channel: pika.channel.Channel):
-            channel.basic_publish(
-                exchange=constants.RABBITMQ_EXCHANGE,
-                routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req.requirement_id}",
-                body=msgspec.json.encode(req),
-            )
+    def publish_requirement_for_candidate_correlation(self, req: models.Requirement):
+        self.channel.basic_publish(
+            exchange=constants.RABBITMQ_EXCHANGE,
+            routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req.requirement_id}",
+            body=msgspec.json.encode(req),
+        )
 
-        if channel:
-            _publish(channel)
-            return
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            _publish(channel)
+    def publish_requirement_dict_for_candidate_correlation(self, req: dict):
+        self.channel.basic_publish(
+            exchange=constants.RABBITMQ_EXCHANGE,
+            routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req['requirement_id']}",
+            body=msgspec.json.encode(req),
+        )
 
-    def publish_requirement_dict_for_candidate_correlation(
-        self, req: dict, channel: pika.channel.Channel = None
-    ):
-        def _publish(channel: pika.channel.Channel):
-            channel.basic_publish(
-                exchange=constants.RABBITMQ_EXCHANGE,
-                routing_key=f"{constants.RABBITMQ_REQS_CAND_CORR_RK_PREFIX}.{req['requirement_id']}",
-                body=msgspec.json.encode(req),
-            )
-
-        if channel:
-            _publish(channel)
-            return
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            _publish(channel)
-
-    def publish_cdc_event_log_entry(
-        self, event: models.EventLogEntry, channel: pika.channel.Channel = None
-    ):
-        def _publish(channel: pika.channel.Channel):
-            channel.basic_publish(
-                exchange=constants.RABBITMQ_EXCHANGE,
-                routing_key=f"cdc.{event.schema}.{event.table}.{event.event_id}",
-                body=msgspec.json.encode(event),
-            )
-
-        if channel:
-            _publish(channel)
-            return
-        with self.rmq_conn_factory() as connection, connection.channel() as channel:
-            _publish(channel)
+    def publish_cdc_event_log_entry(self, event: models.EventLogEntry):
+        self.channel.basic_publish(
+            exchange=constants.RABBITMQ_EXCHANGE,
+            routing_key=f"cdc.{event.schema}.{event.table}.{event.event_id}",
+            body=msgspec.json.encode(event),
+        )

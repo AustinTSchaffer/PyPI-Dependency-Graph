@@ -5,8 +5,8 @@ from typing import Literal
 import msgspec
 
 
-class PackageName(msgspec.Struct):
-    package_name: str
+class Package(msgspec.Struct):
+    name: str
     date_discovered: datetime.datetime | None = None
     date_last_checked: datetime.datetime | None = None
 
@@ -53,8 +53,7 @@ class Requirement(msgspec.Struct):
 
 class Candidate(msgspec.Struct):
     requirement_id: str
-    candidate_versions: list[str]
-    candidate_version_ids: list[str]
+    version_id: str
 
 
 class EventLogEntry(msgspec.Struct):

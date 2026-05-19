@@ -7,7 +7,7 @@ from pipdepgraph.core import common, rabbitmq
 
 from pipdepgraph.repositories import (
     distributions_repository,
-    package_names_repository,
+    packages_repository,
     requirements_repository,
 )
 
@@ -24,9 +24,11 @@ def main():
     with (
         common.initialize_connection_pool() as db_pool,
         common.initialize_client_session() as session,
+        rabbitmq.initialize_rabbitmq_connection() as rabbitmq_connection,
+        rabbitmq_connection.channel() as channel,
     ):
         logger.info("Initializing repositories")
-        pnr = package_names_repository.PackageNamesRepository(db_pool)
+        pnr = packages_repository.PackagesRepository(db_pool)
         dr = distributions_repository.DistributionsRepository(db_pool)
         rr = requirements_repository.RequirementsRepository(db_pool)
 
@@ -34,9 +36,7 @@ def main():
         pypi = pypi_api.PypiApi(session)
 
         logger.info("Initializing rabbitmq_publish_service.RabbitMqPublishService")
-        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(
-            rabbitmq.initialize_rabbitmq_connection
-        )
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
         logger.info(
             "Initializing distribution_processing_service.DistributionProcessingService"

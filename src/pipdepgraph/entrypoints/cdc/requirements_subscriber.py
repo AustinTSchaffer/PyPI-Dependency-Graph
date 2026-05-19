@@ -11,21 +11,23 @@ logger = logging.getLogger("pipdepgraph.entrypoints.cdc.requirements_subscriber"
 
 
 def main():
-    rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(
-        rabbitmq.initialize_rabbitmq_connection
-    )
+    with (
+        rabbitmq.initialize_rabbitmq_connection() as connection,
+        connection.channel() as channel,
+    ):
+        rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
-    def process(event: models.EventLogEntry) -> None:
-        if event.operation in ('INSERT', 'UPDATE') and event.after is not None:
-            rmq_pub.publish_requirement_dict_for_candidate_correlation(event.after)
+        def process(event: models.EventLogEntry) -> None:
+            if event.operation in ('INSERT', 'UPDATE') and event.after is not None:
+                rmq_pub.publish_requirement_dict_for_candidate_correlation(event.after)
 
-    logger.info("Running.")
-    rabbitmq.consume_from_rabbitmq(
-        rabbitmq_queue_name=constants.RABBITMQ_CDC_REQS_QNAME,
-        prefetch_count=constants.RABBITMQ_CDC_REQS_SUB_PREFETCH,
-        model_factory=lambda b: msgspec.json.decode(b, type=models.EventLogEntry),
-        on_message=process,
-    )
+        logger.info("Running.")
+        rabbitmq.consume_from_rabbitmq(
+            rabbitmq_queue_name=constants.RABBITMQ_CDC_REQS_QNAME,
+            prefetch_count=constants.RABBITMQ_CDC_REQS_SUB_PREFETCH,
+            model_factory=lambda b: msgspec.json.decode(b, type=models.EventLogEntry),
+            on_message=process,
+        )
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ class PypiApi:
         self.session = session
 
     def get_package_distributions_legacy(
-        self, package_name: str | models.PackageName
+        self, package_name: str | models.Package
     ) -> PackageVersionDistributionResponse | None:
         """
         Returns a dictionary mapping the package's versions to a list of distributions
@@ -65,7 +65,7 @@ class PypiApi:
         """
 
         _package_name = (
-            package_name if isinstance(package_name, str) else package_name.package_name
+            package_name if isinstance(package_name, str) else package_name.name
         )
         _package_name = packaging.utils.canonicalize_name(_package_name)
 
