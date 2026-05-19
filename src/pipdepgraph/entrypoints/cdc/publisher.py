@@ -38,7 +38,7 @@ def main():
                 rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
                 for event in cdcr.iter_event_log():
                     logger.debug("Publishing event: %s", event)
-                    rmq_pub.publish_cdc_event_log_entry(event, channel)
+                    rmq_pub.publish_cdc_event_log_entry(event)
 
             logger.info("Event log drained. Waiting 10 seconds.")
             time.sleep(10)

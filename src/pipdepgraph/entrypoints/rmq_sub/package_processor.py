@@ -16,7 +16,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-logger = logging.getLogger("pipdepgraph.entrypoints.rmq_sub.package_name_processor")
+logger = logging.getLogger("pipdepgraph.entrypoints.rmq_sub.package_processor")
 
 
 def main():
@@ -39,9 +39,10 @@ def main():
         rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
         logger.info(
-            "Initializing package_name_processing_service.PackageNameProcessingService"
+            "Initializing package_processing_service.PackageProcessingService"
         )
-        pnps = package_processing_service.PackageProcessingService(
+
+        pps = package_processing_service.PackageProcessingService(
             pnr=pnr,
             vr=vr,
             dr=dr,
@@ -55,7 +56,7 @@ def main():
             rabbitmq_queue_name=constants.RABBITMQ_NAMES_QNAME,
             prefetch_count=constants.RABBITMQ_NAMES_SUB_PREFETCH,
             model_factory=lambda b: msgspec.json.decode(b, type=models.Package | str),
-            on_message=lambda model: pnps.process_package_name(
+            on_message=lambda model: pps.process_package_name(
                 model, ignore_date_last_checked=True
             ),
         )

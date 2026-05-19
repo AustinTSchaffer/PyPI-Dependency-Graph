@@ -38,16 +38,12 @@ def main():
             cr=cr,
         )
 
-        def process(requirement: models.Requirement) -> None:
-            logger.debug("Correlating candidates for requirement: %s", requirement)
-            ccs.process_requirement_record(requirement)
-
         logger.info("Running.")
         rabbitmq.consume_from_rabbitmq(
             rabbitmq_queue_name=constants.RABBITMQ_REQS_CAND_CORR_QNAME,
             prefetch_count=constants.RABBITMQ_REQS_CAND_CORR_SUB_PREFETCH,
             model_factory=lambda b: msgspec.json.decode(b, type=models.Requirement),
-            on_message=process,
+            on_message=ccs.process_requirement_record,
         )
 
 

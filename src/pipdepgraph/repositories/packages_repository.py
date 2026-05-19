@@ -99,7 +99,7 @@ class PackagesRepository:
             return
 
         def _update_package_names(cursor: Cursor):
-            query = f"update {table_names.PACKAGES} set date_last_checked = %s where package_name = %s;"
+            query = f"update {table_names.PACKAGES} set date_last_checked = %s where name = %s;"
             params_seq = [(pn.date_last_checked, pn.name) for pn in packages]
             cursor.executemany(query, params_seq)
 

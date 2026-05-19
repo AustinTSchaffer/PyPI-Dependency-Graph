@@ -5,7 +5,6 @@ import packaging
 import packaging.specifiers
 import packaging.version
 from psycopg_pool import ConnectionPool
-from psycopg.rows import dict_row
 
 from pipdepgraph import models
 from pipdepgraph.repositories import (
@@ -50,12 +49,32 @@ class CandidateCorrelationService:
         RabbitMQ.
         """
 
-        with self.db_pool.connection() as conn, conn.cursor(
-            row_factory=dict_row
-        ) as cursor:
-            logger.info(f"Searching for requirements that depend on: {version.package_name}=={version.package_version}")
-            for reverse_candidate in self.requirements_repo.iter_requirements(dependency_name=version.package_name):
-                ...
+        try:
+            parsed_version = packaging.version.Version(version.package_version)
+        except Exception:
+            logger.error("Error while parsing version: %s.", version.package_version, exc_info=True)
+            return
+
+        candidates = []
+        for requirement in self.requirements_repo.iter_requirements(dependency_name=version.package_name):
+            if not requirement.dependency_name or str.isspace(requirement.dependency_name):
+                continue
+
+            try:
+                req_specifier_set = packaging.specifiers.SpecifierSet(requirement.version_constraint)
+            except Exception:
+                logger.error("Error while parsing specifier set: %s", requirement.version_constraint, exc_info=True)
+                continue
+
+            if parsed_version in req_specifier_set:
+                candidates.append(
+                    models.Candidate(
+                        requirement_id=requirement.requirement_id,
+                        version_id=version.version_id,
+                    )
+                )
+
+        self.candidates_repo.insert_candidates(candidates)
 
 
     def process_requirement_record(
@@ -82,31 +101,20 @@ class CandidateCorrelationService:
             return
 
         versions = self.versions_repo.get_versions(package_name=requirement.dependency_name)
-
-        package_version_to_version_model_map = {
-            version.package_version: version
-            for version in versions
-        }
-
         parsed_version_to_package_version_map: dict[packaging.version.Version, models.Version] = {}
         for version in versions:
             try:
                 parsed_version = packaging.version.Version(version.package_version)
-                parsed_version_to_package_version_map[parsed_version] = version.package_version
+                parsed_version_to_package_version_map[parsed_version] = version
             except:
                 logger.error("Error while parsing version: %s.", version.package_version, exc_info=True)
                 pass
 
-        try:
-            parsed_candidate_versions = sorted(req_specifier_set.filter(parsed_version_to_package_version_map.keys()), reverse=True)
-        except Exception:
-            logger.error("Error while filter-sorting requirements.", exc_info=True)
-            return
-
+        parsed_candidate_versions = list(req_specifier_set.filter(parsed_version_to_package_version_map.keys()))
         candidates = [
             models.Candidate(
                 requirement_id=requirement.requirement_id,
-                version_id=package_version_to_version_model_map[v].version_id,
+                version_id=parsed_version_to_package_version_map[v].version_id,
             )
             for v in parsed_candidate_versions
         ]

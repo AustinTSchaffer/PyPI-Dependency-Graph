@@ -50,6 +50,13 @@ class RabbitMqPublishService:
             body=msgspec.json.encode(req),
         )
 
+    def publish_version_dict_for_candidate_correlation(self, version: dict):
+        self.channel.basic_publish(
+            exchange=constants.RABBITMQ_EXCHANGE,
+            routing_key=f"{constants.RABBITMQ_VERS_CAND_CORR_RK_PREFIX}.{version['version_id']}",
+            body=msgspec.json.encode(version),
+        )
+
     def publish_cdc_event_log_entry(self, event: models.EventLogEntry):
         self.channel.basic_publish(
             exchange=constants.RABBITMQ_EXCHANGE,

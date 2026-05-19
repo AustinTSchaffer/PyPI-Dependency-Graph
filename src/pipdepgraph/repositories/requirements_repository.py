@@ -109,7 +109,7 @@ class RequirementsRepository:
         dist_processed: bool | None = None,
         dist_id_hash_mod_filter: tuple[str, int, int] | None = None,
         dependency_name: str | None = None,
-        dependency_extras_arr_is_none: bool = None,
+        dependency_extras_is_none: bool = None,
     ) -> Iterator[models.Requirement]:
         """
         Iterates over a list of requirements records, returning each
@@ -124,11 +124,10 @@ class RequirementsRepository:
             select
                 req.requirement_id         requirement_id,
                 req.distribution_id        distribution_id,
-                req.extras                 extras,
+                req.marker                 marker,
                 req.dependency_name        dependency_name,
                 req.dependency_extras      dependency_extras,
-                req.version_constraint     version_constraint,
-                req.dependency_extras_arr  dependency_extras_arr
+                req.version_constraint     version_constraint
             from {table_names.REQUIREMENTS} req {
                 f" join {table_names.DISTRIBUTIONS} dist on req.distribution_id = dist.distribution_id "
                 if any(filter(lambda v: v is not None, [package_name, package_version, dist_processed, dist_package_type])) else
@@ -188,16 +187,16 @@ class RequirementsRepository:
                 query += " mod(get_byte(pypi_packages.digest(req.distribution_id::text, %s::text), 0), %s) = %s "
                 params.extend((hash_alg, mod_base, mod_val))
 
-            if dependency_extras_arr_is_none is not None:
+            if dependency_extras_is_none is not None:
                 if not has_where:
                     query += " where "
                     has_where = True
                 else:
                     query += " and "
-                if dependency_extras_arr_is_none:
-                    query += " req.dependency_extras_arr is null "
+                if dependency_extras_is_none:
+                    query += " req.dependency_extras is null "
                 else:
-                    query += " req.dependency_extras_arr is not null "
+                    query += " req.dependency_extras is not null "
 
             if dependency_name is not None:
                 if not has_where:

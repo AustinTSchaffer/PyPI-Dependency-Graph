@@ -28,8 +28,8 @@ class Version(msgspec.Struct):
 
 
 class Distribution(msgspec.Struct):
-    version_id: str | None
-    distribution_id: str | None
+    version_id: uuid.UUID | None
+    distribution_id: uuid.UUID | None
     package_type: str
     python_version: str
     requires_python: str | None
@@ -42,8 +42,8 @@ class Distribution(msgspec.Struct):
 
 
 class Requirement(msgspec.Struct):
-    requirement_id: str | None
-    distribution_id: str
+    requirement_id: uuid.UUID | None
+    distribution_id: uuid.UUID
     marker: str
     dependency_name: str
     version_constraint: str
@@ -52,8 +52,8 @@ class Requirement(msgspec.Struct):
 
 
 class Candidate(msgspec.Struct):
-    requirement_id: str
-    version_id: str
+    requirement_id: uuid.UUID
+    version_id: uuid.UUID
 
 
 class EventLogEntry(msgspec.Struct):

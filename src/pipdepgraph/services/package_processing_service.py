@@ -18,7 +18,7 @@ from pipdepgraph.services import (
     rabbitmq_publish_service,
 )
 
-RECHECK_PACKAGE_NAME_INTERVAL = datetime.timedelta(hours=1)
+RECHECK_PACKAGE_INTERVAL = datetime.timedelta(hours=1)
 """
 The interval that this module uses to determine if a `package_name`
 has been processed recently.
@@ -98,7 +98,7 @@ class PackageProcessingService:
         should_process_package_name = (
             ignore_date_last_checked
             or package_name.date_last_checked is None
-            or package_name.date_last_checked < (now - RECHECK_PACKAGE_NAME_INTERVAL)
+            or package_name.date_last_checked < (now - RECHECK_PACKAGE_INTERVAL)
         )
 
         if not should_process_package_name:

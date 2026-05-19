@@ -7,6 +7,16 @@ create or replace function pypi_packages.canonicalize_package_name(package_name 
     $body$
 language plpgsql;
 
+create or replace function pypi_packages.canonicalize_name_tr()
+    returns trigger as
+    $body$
+    begin
+       new.name = pypi_packages.canonicalize_package_name(new.name);
+       return new;
+    end;
+    $body$
+language plpgsql;
+
 create or replace function pypi_packages.canonicalize_package_name_tr()
     returns trigger as
     $body$
@@ -29,9 +39,9 @@ language plpgsql;
 
 create or replace trigger canonicalize_package_name
     before insert or update
-    on pypi_packages.package_names
+    on pypi_packages.packages
     for each row
-    execute function pypi_packages.canonicalize_package_name_tr();
+    execute function pypi_packages.canonicalize_name_tr();
 
 create or replace trigger canonicalize_package_name
     before insert or update

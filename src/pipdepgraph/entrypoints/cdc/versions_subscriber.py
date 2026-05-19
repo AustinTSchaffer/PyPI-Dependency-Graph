@@ -1,4 +1,5 @@
 import logging
+import msgspec
 
 from pipdepgraph import constants, models
 from pipdepgraph.services import rabbitmq_publish_service
@@ -16,14 +17,14 @@ def main():
         rmq_pub = rabbitmq_publish_service.RabbitMqPublishService(channel)
 
         def process(event: models.EventLogEntry) -> None:
-            if event.operation in ('INSERT', 'UPDATE') and event.after is not None:
-                rmq_pub.publish_requirement_dict_for_candidate_correlation(event.after)
+            if event.operation in ("INSERT", "UPDATE") and event.after is not None:
+                rmq_pub.publish_version_dict_for_candidate_correlation(event.after)
 
         logger.info("Running.")
         rabbitmq.consume_from_rabbitmq(
-            rabbitmq_queue_name=constants.RABBITMQ_CDC_REQS_QNAME,
+            rabbitmq_queue_name=constants.RABBITMQ_CDC_VERSIONS_QNAME,
             prefetch_count=constants.RABBITMQ_CDC_REQS_SUB_PREFETCH,
-            model_factory=models.EventLogEntry.from_dict,
+            model_factory=lambda b: msgspec.json.decode(b, type=models.EventLogEntry),
             on_message=process,
         )
 

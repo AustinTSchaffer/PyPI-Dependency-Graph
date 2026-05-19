@@ -29,7 +29,7 @@ services:
     volumes:
       - broker:/var/lib/rabbitmq
 
-  package_name_processor:
+  package_processor:
     restart: always
     build:
       context: .
@@ -38,7 +38,7 @@ services:
         - pypi_scraper/app
     deploy:
       replicas: 1
-    command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/package_name_processor.py"]
+    command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/package_processor.py"]
     networks:
       - db_net
       - broker_net
@@ -85,30 +85,54 @@ services:
       - db
       - broker
 
+  candidate_correlator_requirements:
+    restart: always
+    build:
+      context: .
+      dockerfile: app.Dockerfile
+      tags:
+        - pypi_scraper/app
+    command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/candidate_correlator_requirements.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+    depends_on:
+      - db
+      - broker
 
-  # candidate_correlator:
-  #   restart: always
-  #   build:
-  #     context: .
-  #     dockerfile: app.Dockerfile
-  #     tags:
-  #       - pypi_scraper/app
-  #   command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/candidate_correlator.py"]
-  #   networks:
-  #     - db_net
-  #     - broker_net
-  #   environment:
-  #     POSTGRES_HOST: db
-  #     POSTGRES_DB: defaultdb
-  #     POSTGRES_USER: pypi_scraper
-  #     POSTGRES_PASSWORD: password
-  #     RABBITMQ_HOST: broker
-  #     RABBITMQ_VHOST: pypi_scraper
-  #     RABBITMQ_USERNAME: pypi_scraper
-  #     RABBITMQ_PASSWORD: password
-  #   depends_on:
-  #     - db
-  #     - broker
+
+  candidate_correlator_versions:
+    restart: always
+    build:
+      context: .
+      dockerfile: app.Dockerfile
+      tags:
+        - pypi_scraper/app
+    command: ["python", "src/pipdepgraph/entrypoints/rmq_sub/candidate_correlator_versions.py"]
+    networks:
+      - db_net
+      - broker_net
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: defaultdb
+      POSTGRES_USER: pypi_scraper
+      POSTGRES_PASSWORD: password
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+    depends_on:
+      - db
+      - broker
 
 
   cdc:
@@ -152,6 +176,25 @@ services:
       RABBITMQ_PASSWORD: password
     depends_on:
       - broker
+
+  cdc_versions:
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: app.Dockerfile
+      tags:
+        - pypi_scraper/app
+    command: ["python", "src/pipdepgraph/entrypoints/cdc/versions_subscriber.py"]
+    networks:
+      - broker_net
+    environment:
+      RABBITMQ_HOST: broker
+      RABBITMQ_VHOST: pypi_scraper
+      RABBITMQ_USERNAME: pypi_scraper
+      RABBITMQ_PASSWORD: password
+    depends_on:
+      - broker
+
 
 volumes:
   db:
